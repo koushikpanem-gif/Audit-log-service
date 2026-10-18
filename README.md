@@ -29,7 +29,10 @@ The root-level `pom.xml` and `src/` are a pre-existing starter. They are kept
 unchanged and are not used by the new `java/` or `python/` builds.
 
 Signed small export bundles (`GET /audit/export`) and the Java offline bundle
-verifier CLI are described in [`docs/export-bundles.md`](./docs/export-bundles.md).
+verifier CLI follow the normative small v1 contract in
+[`docs/export-bundles.md`](./docs/export-bundles.md) and the schemas in `docs/schemas/`.
+Export limits: `AUDIT_EXPORT_MAX_RECORDS` (default 1000) and `AUDIT_EXPORT_MAX_BYTES`
+(default 8 MiB).
 Large export sets and the Python verifier are not implemented yet.
 
 Checkpoint key/configuration contracts and limits are documented in

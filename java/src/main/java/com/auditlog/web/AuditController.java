@@ -2,6 +2,7 @@ package com.auditlog.web;
 
 import com.auditlog.core.crypto.CheckpointSigner;
 import com.auditlog.domain.AppendEventRequest;
+import com.auditlog.domain.BundleSelection;
 import com.auditlog.service.AppendedEvent;
 import com.auditlog.service.AppendEventService;
 import com.auditlog.service.EventQueryService;
@@ -52,14 +53,23 @@ public class AuditController {
         this.exportService = exportService;
     }
 
-    @GetMapping("/audit/export")
-    @Operation(summary = "Export a signed v1 bundle for one actor or resource")
+    @GetMapping(value = "/audit/export", produces = "application/json")
+    @Operation(summary = "Export a signed small v1 bundle (needs actorId or resourceId)")
     @SecurityRequirement(name = "apiKeyAuth")
-    public Map<String, Object> export(
+    public ResponseEntity<byte[]> export(
             @RequestParam(required = false) String actorId,
+            @RequestParam(required = false) String resourceType,
             @RequestParam(required = false) String resourceId,
+            @RequestParam(required = false) String eventType,
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to,
             HttpServletRequest httpRequest) throws SQLException {
-        return exportService.export(actorId, resourceId, principal(httpRequest).name());
+        BundleSelection selection = BundleSelection.forExport(
+                actorId, resourceType, resourceId, eventType, from, to);
+        byte[] canonical = exportService.export(selection, principal(httpRequest).name());
+        return ResponseEntity.ok()
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .body(canonical);
     }
 
     @GetMapping("/audit/verify")

@@ -40,6 +40,7 @@ is 3.11.
 | [HTTPX2](https://pypi.org/project/httpx2/) | 2.13.1 | Starlette 1.8 test client transport; replaces deprecated HTTPX integration. |
 | [Ruff](https://pypi.org/project/ruff/) | 0.17.1 | Lint and formatting checks. |
 | [mypy](https://pypi.org/project/mypy/) | 2.4.0 | Static type checking. |
+| [jsonschema](https://pypi.org/project/jsonschema/) | 4.26.0 | Dev only: validates `docs/schemas` against golden bundle fixtures (latest per `pip index versions`, 2026-10-18; pulls attrs, referencing, rpds-py, jsonschema-specifications). |
 | [setuptools](https://pypi.org/project/setuptools/) | 84.0.0 | Pinned PEP 517 build backend. |
 
 The versions and declared Python requirements were read from each package's

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://audit-log.invalid/schemas/diagnostics.schema.json",
+  "title": "Bundle verifier result and diagnostics",
+  "description": "Bundle diagnostics are separate from live-ledger violation types. seq/pointer are populated only when relevant; messages never contain plaintext payload values, salts or private data. At most 100 diagnostics are retained; totalDiagnosticCount is exact.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status", "originTrusted", "diagnostics", "totalDiagnosticCount", "diagnosticsTruncated"],
+  "properties": {
+    "status": {"enum": ["VERIFIED", "INTEGRITY_VALID_ORIGIN_UNTRUSTED", "INVALID"]},
+    "originTrusted": {"type": "boolean"},
+    "diagnostics": {"type": "array", "maxItems": 100, "items": {"$ref": "#/$defs/diagnostic"}},
+    "totalDiagnosticCount": {"type": "integer", "minimum": 0},
+    "diagnosticsTruncated": {"type": "boolean"}
+  },
+  "$defs": {
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "seq", "pointer", "message"],
+      "properties": {
+        "code": {"enum": ["BUNDLE_SCHEMA_INVALID", "UNSUPPORTED_FORMAT", "UNSUPPORTED_ALGORITHM", "RESOURCE_LIMIT_EXCEEDED", "TRUSTED_KEY_REQUIRED", "SIGNER_KEY_MISMATCH", "KEY_ID_MISMATCH", "BUNDLE_SIGNATURE_INVALID", "CHECKPOINT_SIGNATURE_INVALID", "GENESIS_MISMATCH", "RECORD_COUNT_MISMATCH", "RECORDS_DIGEST_MISMATCH", "RECORD_ORDER_INVALID", "RECORD_OUT_OF_RANGE", "LEAF_COMMITMENT_MISMATCH", "CONTENT_HASH_MISMATCH", "CHAIN_HASH_MISMATCH", "CHAIN_LINK_BROKEN", "CHECKPOINT_MISMATCH", "SELECTION_MISMATCH"]},
+        "seq": {"type": ["integer", "null"], "minimum": 1},
+        "pointer": {"type": ["string", "null"]},
+        "message": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

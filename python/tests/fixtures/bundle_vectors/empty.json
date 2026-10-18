@@ -1,0 +1,44 @@
+{
+  "bundleId": "golden-bundle-empty",
+  "completeness": {
+    "archivedRecordsExcluded": true,
+    "assurance": "SIGNED_ASSERTION",
+    "scope": "MATCHING_RETAINED_LIVE_RECORDS",
+    "throughSeq": 0,
+    "upstreamCoverage": "NOT_PROVEN"
+  },
+  "exportedAt": "2030-01-01T00:00:01.000000Z",
+  "exportedBy": "golden-auditor",
+  "format": "audit-export-bundle/v1",
+  "genesisHash": "126eb220e200cb97fab47741d517ad0f8a4c8572d0b1f444f19a2295e2f77baa",
+  "hashAlgorithm": "SHA-256",
+  "hashVersion": 1,
+  "headCheckpoint": {
+    "chainHash": "d73ca2831730f5a7e568cdc9e57e0b01cf70b8ac2ed529c5f200340b28e0566f",
+    "createdAt": "2030-01-01T00:00:01.000000Z",
+    "keyId": "21fe31dfa154a261",
+    "seq": 1,
+    "signature": "gW0I+p4z1Hkj26OfUFEhlz/HFuimHNMlsbaJihbxJEH4LqBMJU2iMaHvFKLn8csUuXWYYtKYgk9tqYEYL9/GDw=="
+  },
+  "ledgerId": "golden-empty-ledger",
+  "purpose": "EXPORT",
+  "recordCount": 0,
+  "records": [],
+  "recordsDigest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+  "selection": {
+    "actorId": "nobody",
+    "eventType": null,
+    "from": null,
+    "resourceId": null,
+    "resourceType": null,
+    "seqFrom": null,
+    "seqTo": null,
+    "to": null
+  },
+  "signature": "AQEfiK6X/ozvZXGA5aG0LSUg3pcLPqCxQXMdIxG8j1VOGGaPc8c5jJOe+AfO1zW6cplb/jwAvDnEMHDoExwhCg==",
+  "signatureAlgorithm": "Ed25519",
+  "signer": {
+    "keyId": "21fe31dfa154a261",
+    "publicKey": "11qYAYKxCrfVS/7TyWQHOg7hcvPapiMlrwIaaPcHURo="
+  }
+}

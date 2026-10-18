@@ -20,16 +20,14 @@ public class ApiExceptionHandler {
         return error(exception.status(), exception.code(), exception.getMessage());
     }
 
-    @ExceptionHandler(ExportBundleService.ExportTooLargeException.class)
-    public ResponseEntity<ApiErrorResponse> exportTooLarge(
-            ExportBundleService.ExportTooLargeException exception) {
-        return error(422, "EXPORT_TOO_LARGE", exception.getMessage());
-    }
-
-    @ExceptionHandler(ExportBundleService.EmptyLedgerException.class)
-    public ResponseEntity<ApiErrorResponse> emptyLedger(
-            ExportBundleService.EmptyLedgerException exception) {
-        return error(409, "EMPTY_LEDGER", exception.getMessage());
+    @ExceptionHandler(ExportBundleService.ExportLimitExceededException.class)
+    public ResponseEntity<ApiErrorResponse> exportLimit(
+            ExportBundleService.ExportLimitExceededException exception) {
+        return ResponseEntity.status(422).body(new ApiErrorResponse(new ApiErrorResponse.Error(
+                "EXPORT_LIMIT_EXCEEDED", exception.getMessage(),
+                java.util.List.of(
+                        java.util.Map.of("limit", "AUDIT_EXPORT_MAX_RECORDS", "value", exception.maxRecords()),
+                        java.util.Map.of("limit", "AUDIT_EXPORT_MAX_BYTES", "value", exception.maxBytes())))));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

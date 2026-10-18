@@ -1,14 +1,18 @@
 package com.auditlog.verifier;
 
+import com.auditlog.domain.BundleDiagnostic;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 
 /**
- * Offline CLI. Exit codes: 0 verified, 1 evidence invalid, 2 input or usage error.
+ * Offline CLI. Exit codes: 0 trusted-valid or explicitly untrusted-valid evidence, 1 evidence
+ * invalid (schema, resource limit, signature, missing trusted key), 2 input or usage error such as
+ * an unreadable file or bad arguments.
  *
  * <pre>
  * BundleVerifierCli --bundle bundle.json (--pinned-key-file key.b64 | --pinned-key BASE64
@@ -17,7 +21,7 @@ import java.nio.file.Path;
  */
 public final class BundleVerifierCli {
 
-    public static final int EXIT_VERIFIED = 0;
+    public static final int EXIT_VALID = 0;
     public static final int EXIT_INVALID = 1;
     public static final int EXIT_USAGE = 2;
 
@@ -44,7 +48,7 @@ public final class BundleVerifierCli {
                     case "--allow-self-asserted" -> selfAsserted = true;
                     case "--max-bytes" -> maxBytes = Integer.parseInt(value(args, ++index));
                     case "--max-records" -> maxRecords = Integer.parseInt(value(args, ++index));
-                    default -> throw new BundleVerifier.InputException("Unknown argument: " + args[index]);
+                    default -> throw new BundleVerifier.InputException("Unknown argument");
                 }
             }
             if (bundlePath == null) {
@@ -56,17 +60,34 @@ public final class BundleVerifierCli {
             if (pinnedKeyFile != null) {
                 pinnedKey = Files.readString(Path.of(pinnedKeyFile), StandardCharsets.UTF_8).strip();
             }
+            if (pinnedKey != null && selfAsserted) {
+                throw new BundleVerifier.InputException(
+                        "A pinned key and --allow-self-asserted are mutually exclusive");
+            }
             BundleVerifier.Options options = new BundleVerifier.Options(
                     pinnedKey, selfAsserted, maxBytes, maxRecords);
             byte[] input = read(Path.of(bundlePath), maxBytes);
             BundleVerifier.Result result = BundleVerifier.verify(input, options);
             print(result, out);
-            return result.verified() ? EXIT_VERIFIED : EXIT_INVALID;
+            return result.valid() ? EXIT_VALID : EXIT_INVALID;
         } catch (BundleVerifier.InputException | NumberFormatException | IOException
-                | java.nio.file.InvalidPathException exception) {
-            err.println("ERROR: " + exception.getMessage());
+                | InvalidPathException exception) {
+            err.println("ERROR: " + safeMessage(exception));
             return EXIT_USAGE;
         }
+    }
+
+    private static String safeMessage(Exception exception) {
+        if (exception instanceof NumberFormatException) {
+            return "Numeric option is not a valid integer";
+        }
+        if (exception instanceof IOException) {
+            return "Input file could not be read";
+        }
+        if (exception instanceof InvalidPathException) {
+            return "Path is not valid";
+        }
+        return exception.getMessage();
     }
 
     private static String value(String[] args, int index) {
@@ -76,29 +97,38 @@ public final class BundleVerifierCli {
         return args[index];
     }
 
+    /** Reads at most maxBytes+1 so oversized input is detected without loading it. */
     private static byte[] read(Path path, int maxBytes) throws IOException {
         try (InputStream stream = Files.newInputStream(path)) {
-            byte[] data = stream.readNBytes(maxBytes + 1);
-            if (data.length > maxBytes) {
-                throw new BundleVerifier.InputException("Bundle exceeds the byte limit");
-            }
-            return data;
+            return stream.readNBytes(maxBytes + 1);
         }
     }
 
     private static void print(BundleVerifier.Result result, PrintStream out) {
-        out.println(result.verified() ? "VERIFIED" : "INVALID");
-        out.println("trust: " + result.trust());
+        switch (result.status()) {
+            case VERIFIED -> out.println("VERIFIED");
+            case INTEGRITY_VALID_ORIGIN_UNTRUSTED -> {
+                out.println("INTEGRITY_VALID_ORIGIN_UNTRUSTED");
+                out.println("*** WARNING: ORIGIN NOT TRUSTED - the signer key came from the bundle itself. "
+                        + "This only shows internal consistency, not who produced the bundle. ***");
+            }
+            case INVALID -> out.println("INVALID");
+        }
+        out.println("originTrusted: " + result.originTrusted());
         out.println("ledgerId: " + result.ledgerId());
         out.println("bundleId: " + result.bundleId());
         out.println("keyId: " + result.keyId());
         out.println("recordCount: " + result.recordCount());
         out.println("undisclosedLeafCount: " + result.undisclosedLeafCount());
-        out.println("totalViolationCount: " + result.totalViolationCount());
-        result.violations().forEach(violation -> out.println("violation: " + violation));
-        if (result.violationsTruncated()) {
-            out.println("violationsTruncated: true");
+        out.println("totalDiagnosticCount: " + result.totalDiagnosticCount());
+        for (BundleDiagnostic diagnostic : result.diagnostics()) {
+            out.println("diagnostic: " + diagnostic.code()
+                    + " seq=" + diagnostic.seq() + " pointer=" + diagnostic.pointer()
+                    + " message=" + diagnostic.message());
         }
-        result.notes().forEach(note -> out.println("note: " + note));
+        if (result.diagnosticsTruncated()) {
+            out.println("diagnosticsTruncated: true");
+        }
+        result.notices().forEach(notice -> out.println("notice: " + notice));
     }
 }

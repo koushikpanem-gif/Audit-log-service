@@ -1,70 +1,110 @@
-# Export bundles (v1) and the Java offline verifier
+# Export bundles (small v1) and the Java offline verifier
 
-Status: implemented in Action 10 for small selections. Export sets for large selections
-are a later action; until then oversized selections are rejected explicitly.
+Status: small v1 bundles and the Java verifier (Action 10, aligned to the normative
+contract in the fix pass). Large export sets are a later action; until then selections
+over the configured limits are rejected explicitly with no partial output.
+
+## Schemas
+
+JSON Schema (draft 2020-12) files in [`schemas/`](./schemas): `selection`, `completeness`,
+`checkpoint`, `record`, `bundle`, `diagnostics`. A minimal signed example is
+[`schemas/examples/minimal-valid-bundle.json`](./schemas/examples/minimal-valid-bundle.json)
+(non-production RFC 8032 test key). Schemas check shape only. Cross-field rules (digest,
+count, order, selection matching, hashes, signatures) are enforced by the verifier.
 
 ## Endpoint
 
-`GET /audit/export?actorId=...` or `GET /audit/export?resourceId=...` (auditor or admin).
-Exactly one selector is required (422 otherwise). Responses:
+`GET /audit/export` (auditor or admin) with `actorId`, `resourceType`, `resourceId`,
+`eventType`, `from`, `to`. `actorId` or `resourceId` is required; filters are ANDed;
+`from`/`to` are inclusive microsecond UTC timestamps on `recorded_at`; reversed ranges and
+malformed values give 422. The HTTP body is exactly the final JCS bytes that were signed
+(`application/json`).
 
 | Status | Meaning |
 |---|---|
-| 200 | Signed `audit-export-bundle/v1` JSON |
-| 409 `EMPTY_LEDGER` | No checkpoint can exist for an empty ledger |
-| 422 `EXPORT_TOO_LARGE` | More than 1000 records or 8 MiB canonical bytes (assumption, configurable in code); narrow the selection. No partial result is returned and no export event is written |
+| 200 | Signed `audit-export-bundle/v1` |
+| 422 `EXPORT_LIMIT_EXCEEDED` | Selected records exceed `AUDIT_EXPORT_MAX_RECORDS` (default 1000, max 100000) or the final canonical bundle exceeds `AUDIT_EXPORT_MAX_BYTES` (default 8 MiB, max 64 MiB). `details` lists both limits; no data is returned, nothing is committed (no `BUNDLE_EXPORTED` event, no checkpoint). Narrow the selection. |
 
-Selection, the signed head checkpoint and the `BUNDLE_EXPORTED` system event happen in one
-`BEGIN IMMEDIATE` transaction. Archived records are excluded; the bundle says so.
+There is no empty-ledger 409: an empty selection is a valid signed bundle with
+`throughSeq: 0`, because the `BUNDLE_EXPORTED` event makes the checkpoint non-empty.
 
 ## Bundle body
 
-Fields exactly as specified: `format`, `bundleId`, `purpose`, `ledgerId`, `hashAlgorithm`,
-`hashVersion`, `genesisHash`, `signatureAlgorithm`, `exportedAt`, `exportedBy`, `selection`,
-`completeness`, `recordCount`, `recordsDigest`, `records`, `headCheckpoint`, `signer`, plus
-`signature = Ed25519(JCS(body without signature))`. `recordsDigest = SHA256(JCS(records))`
-with no domain prefix. Records carry `disclosedLeaves` for leaves still stored; redacted
-leaves are simply absent.
+`format, bundleId, purpose, ledgerId, hashAlgorithm, hashVersion, genesisHash,
+signatureAlgorithm, exportedAt, exportedBy, selection, completeness, recordCount,
+recordsDigest, records, headCheckpoint, signer, signature`.
 
-Assumed shapes (the brief fixes names only; engineer review needed):
-
-- `selection`: `{criteria:{actorId|resourceId}, order:"seq-asc", archivedRecords:"EXCLUDED"}`.
-- `completeness`: `{statement, selectionHeadSeq, selectionHeadChainHash, postEventSeq,
-  postEventChainHash, exportEventId}`. The selection head is the signed `headCheckpoint`;
-  the post-event head includes the `BUNDLE_EXPORTED` event, which is not in the bundle.
-- `BUNDLE_EXPORTED` payload: `bundleId, purpose, selectionType, selectionHeadSeq,
-  selectionHeadChainHash, recordCount, recordsDigest, requestedBy` (no selection value).
+- `signature = Ed25519(JCS(body without signature))`, standard Base64.
+- `recordsDigest = SHA256(JCS(records))`, lowercase hex, no domain prefix.
+- `selection` always has exactly eight keys: `actorId, resourceType, resourceId, eventType,
+  from, to, seqFrom, seqTo` (null when unused). Archive exports use seq bounds and no
+  ordinary filters; HTTP exports keep seq bounds null; archived records are never included.
+- `completeness` is exactly `{scope:"MATCHING_RETAINED_LIVE_RECORDS", throughSeq,
+  archivedRecordsExcluded:true, upstreamCoverage:"NOT_PROVEN", assurance:"SIGNED_ASSERTION"}`.
+  `throughSeq` is the head captured in the export transaction before the meta-event, so
+  every record has `seq <= throughSeq <= headCheckpoint.seq`. The head checkpoint and
+  `exportedAt` are the post-event head (`BUNDLE_EXPORTED`, which is not in the records).
+- Records: `seq, eventId, eventType, actorId, resourceType, resourceId, occurredAt, timestamp,
+  source, hashVersion, payloadCommitments, disclosedLeaves, contentHash, prevHash,
+  chainHash`. A leaf that was redacted is simply absent from `disclosedLeaves`.
+- `BUNDLE_EXPORTED` payload: `bundleId, purpose, throughSeq, recordCount, recordsDigest,
+  selectionDigest` (SHA-256 of JCS(selection), so no selection values), `requestedBy`.
 
 ## Offline verifier
 
-`com.auditlog.verifier.BundleVerifierCli` depends only on `core.crypto`.
+`com.auditlog.verifier.BundleVerifierCli` depends only on `core.crypto` and `domain`.
 
 ```
-java -cp java\target\classes;<jackson jars> com.auditlog.verifier.BundleVerifierCli ^
-  --bundle bundle.json (--pinned-key-file key.b64 | --pinned-key BASE64 | --allow-self-asserted)
-  [--max-bytes N] [--max-records N]
+BundleVerifierCli --bundle bundle.json (--pinned-key-file key.b64 | --pinned-key BASE64
+                  | --allow-self-asserted) [--max-bytes N] [--max-records N]
 ```
 
-Exit codes: 0 verified, 1 evidence invalid, 2 input/usage error (unreadable, over-limit,
-non-strict JSON, missing key choice). A pinned key is required by default; `--allow-self-asserted`
-uses the bundle's own key, prints `UNTRUSTED_SELF_ASSERTED_KEY` and proves only internal
-consistency. Defaults: 64 MiB input, 100000 records, depth 32.
+| Exit | Meaning |
+|---|---|
+| 0 | Valid. `VERIFIED` (pinned key matched) or `INTEGRITY_VALID_ORIGIN_UNTRUSTED` (self-asserted, with a prominent warning; never printed as plain VERIFIED) |
+| 1 | Evidence invalid: schema, resource limit, signature, hashes, or no trusted key (`TRUSTED_KEY_REQUIRED`) |
+| 2 | Input/usage: unreadable file, bad arguments, malformed pinned key, conflicting trust options |
 
-Checks: exact field sets; format/algorithms/hashVersion/purpose; signer key and keyId;
-pinned-key equality; bundle signature; genesis; record count and digest; per record the
-leaf commitments, content hash, chain hash, strictly increasing seq, adjacent `prevHash`
-links, seq 1 genesis; head checkpoint signature, keyId, no record newer than the head, and
-head chain-hash equality. Violation codes: `SCHEMA_INVALID`, `SIGNER_INVALID`, `KEY_NOT_PINNED`,
-`SIGNATURE_INVALID`, `GENESIS_MISMATCH`, `RECORD_COUNT_MISMATCH`, `RECORDS_DIGEST_MISMATCH`,
-`MALFORMED_RECORD`, `ORDER_INVALID`, `LEAF_POINTER_UNKNOWN`, `LEAF_COMMITMENT_MISMATCH`,
-`CONTENT_HASH_MISMATCH`, `CHAIN_HASH_MISMATCH`, `CHAIN_LINK_BROKEN`, `HEAD_CHECKPOINT_INVALID`,
-`RECORD_AFTER_HEAD`, `HEAD_MISMATCH` (at most 100 are listed; the exact total is reported).
+Defaults: 64 MiB input, 100000 records, depth 32. Input is not required to be canonical.
+
+Diagnostic codes (at most 100 kept, exact total reported): `BUNDLE_SCHEMA_INVALID,
+UNSUPPORTED_FORMAT, UNSUPPORTED_ALGORITHM, RESOURCE_LIMIT_EXCEEDED, TRUSTED_KEY_REQUIRED,
+SIGNER_KEY_MISMATCH, KEY_ID_MISMATCH, BUNDLE_SIGNATURE_INVALID, CHECKPOINT_SIGNATURE_INVALID,
+CHECKPOINT_MISMATCH, GENESIS_MISMATCH, RECORD_COUNT_MISMATCH, RECORDS_DIGEST_MISMATCH,
+RECORD_ORDER_INVALID, RECORD_OUT_OF_RANGE, SELECTION_MISMATCH, LEAF_COMMITMENT_MISMATCH,
+CONTENT_HASH_MISMATCH, CHAIN_HASH_MISMATCH, CHAIN_LINK_BROKEN`.
+
+Mapping decisions (assumptions for engineer review): `hashVersion != 1` ->
+`UNSUPPORTED_ALGORITHM`; filter or seq-bound violation -> `SELECTION_MISMATCH`;
+`seq > throughSeq` or beyond the head -> `RECORD_OUT_OF_RANGE`; head hash mismatch or
+`head.seq < throughSeq` -> `CHECKPOINT_MISMATCH`; non-canonical timestamp ->
+`BUNDLE_SCHEMA_INVALID`; a malformed `--pinned-key` is a usage error (exit 2).
+
+## Compatibility decision
+
+The first Action 10 commit (`d2a1b92`) used invented `selection`/`completeness` shapes,
+invented diagnostic codes, exit 2 for a missing key and a 409 for an empty ledger. Nothing
+was released or pushed, so the fix pass supersedes those shapes without a compatibility
+layer. The fix is a separate commit so the history stays honest.
+
+## What the tests prove
+
+- Java builder -> Java verifier round trips and re-signing with the same key prove internal
+  consistency only. They are not independent crypto evidence.
+- Frozen golden fixtures (`python/tests/fixtures/bundle_vectors`) were produced by
+  `generate_bundle_vectors.py` using Python primitives and the `cryptography` package, with
+  the public RFC 8032 section 7.1 TEST 1 key (non-production; the generator asserts the RFC
+  public key and empty-message signature). Java verifies them but never regenerates them.
+  A pytest checks the files match the generator, and another validates them against the
+  schemas with `jsonschema`.
+- Not proven: a Python production verifier or Python-built bundles verified by Java in
+  production code paths (Action 16), export-set chunks (Action 11), benchmarks (Action 23).
 
 ## Limits
 
-- A missing disclosed leaf is reported as undisclosed/redacted. The bundle does not prove it
-  was authorized; that needs the ledger's authorization events.
-- Filtered selections have no global inclusion proof; completeness is asserted by the signer.
-- A verified bundle with a pinned key proves the signer produced it, not that the signer's
-  claims are complete. Key compromise is out of scope.
-- No Python verifier, no cross-language bundle vectors and no export-set chunks yet.
+- A missing disclosed leaf is undisclosed/redacted; it is not proof that a redaction was
+  authorized (that needs authorization events).
+- Filtered selections have no global inclusion proof; completeness is a signer assertion
+  (`SIGNED_ASSERTION`) and upstream coverage is `NOT_PROVEN`.
+- A pinned-key pass shows the pinned signer produced the bundle, not that its claims are
+  complete. Key compromise is out of scope.

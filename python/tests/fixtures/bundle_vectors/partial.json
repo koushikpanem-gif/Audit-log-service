@@ -1,0 +1,113 @@
+{
+  "bundleId": "golden-bundle-partial",
+  "completeness": {
+    "archivedRecordsExcluded": true,
+    "assurance": "SIGNED_ASSERTION",
+    "scope": "MATCHING_RETAINED_LIVE_RECORDS",
+    "throughSeq": 3,
+    "upstreamCoverage": "NOT_PROVEN"
+  },
+  "exportedAt": "2030-01-01T00:00:04.000000Z",
+  "exportedBy": "golden-auditor",
+  "format": "audit-export-bundle/v1",
+  "genesisHash": "f413a5e44ec77a7e6f7018d7d457a537da9e50f0d03029666d4f09504d23558a",
+  "hashAlgorithm": "SHA-256",
+  "hashVersion": 1,
+  "headCheckpoint": {
+    "chainHash": "34945fcc01d5041302c44231eb48484af5465e6abcdfcc965307236b196a462f",
+    "createdAt": "2030-01-01T00:00:04.000000Z",
+    "keyId": "21fe31dfa154a261",
+    "seq": 4,
+    "signature": "XyCF0N/UzzcFvFpWWaEl/kGDOM5eTd385Cm9WJH1VmmE9dCdgZ1uvI4NJo3W+QIJOuwTvgmRhJjuLtMsuLcdDA=="
+  },
+  "ledgerId": "golden-test-ledger",
+  "purpose": "EXPORT",
+  "recordCount": 2,
+  "records": [
+    {
+      "actorId": "alice",
+      "chainHash": "aaa9981dfdff975220f05a1526a6390671ca96f5eaa14d39233a1f9210c7ce79",
+      "contentHash": "7c5434e49ec315de99c6150c3ca640eb312d03cef8df3e7c3923ee696a5b773a",
+      "disclosedLeaves": {
+        "/n": {
+          "salt": "a26316fc7eb1bb6edc1f8a88b7debecba144f1e44fd079dcdecd94a1df2dac33",
+          "value": 1
+        },
+        "/note": {
+          "salt": "642ccbb42b430dfc902c0b4307e42bff9a33ab7dbb65223b7f3a5ac13cc7551f",
+          "value": "first"
+        }
+      },
+      "eventId": "00000000-0000-4000-8000-000000000001",
+      "eventType": "NOTE",
+      "hashVersion": 1,
+      "occurredAt": null,
+      "payloadCommitments": {
+        "n": "22d7bcf0196fede54e04aedf1936d928affe1af056d9d12df343547918afc666",
+        "note": "bd36fce8a4271fb24a38e49f60c4a93dacbb5ee5a7f16b50c1518d4c3bf5a761"
+      },
+      "prevHash": "f413a5e44ec77a7e6f7018d7d457a537da9e50f0d03029666d4f09504d23558a",
+      "resourceId": "d1",
+      "resourceType": "DOC",
+      "seq": 1,
+      "source": "api:golden",
+      "timestamp": "2030-01-01T00:00:01.000000Z"
+    },
+    {
+      "actorId": "alice",
+      "chainHash": "3717d64d2618b915b3161ffac1d0da294a1b7e2c83fe466115596ec202e3df3c",
+      "contentHash": "a7dbf1a8399ce0f56031fc0c542f052a162c139962bbe0fe31c768e2e8872365",
+      "disclosedLeaves": {
+        "/nested/k/0": {
+          "salt": "d8a1cf829252623ccb26310eed0f4c29f252e992a8d9206efaed5b5554e7eed1",
+          "value": 1
+        },
+        "/nested/k/1": {
+          "salt": "1e1a19283d57b450136fdb7a206ea6b3232516fee2f83bc39c73f15f387d9d08",
+          "value": null
+        },
+        "/nested/k/2": {
+          "salt": "80a89f3c40b365d01f20075867a1c91d3d55a2e1f4e1eabb3238ff031b1a1c5d",
+          "value": "x/y~z"
+        }
+      },
+      "eventId": "00000000-0000-4000-8000-000000000003",
+      "eventType": "NOTE",
+      "hashVersion": 1,
+      "occurredAt": null,
+      "payloadCommitments": {
+        "nested": {
+          "k": [
+            "82e11365dba6dc6ad5391b72cc25b626aa8c52d0297a6bee582c027fbd814562",
+            "d0620b94cd688ccfa82532331426fa2b28b03e49991a2a724b673e4b27028a67",
+            "0dcaec09d64673d54b7fa0dcdb4f4686fb909dce46a98bc92fd51e969d272ce1"
+          ]
+        },
+        "secret": "ae13c9b3ed0e2d1199b7a82ba53a3844f74c4ce297d5fa1c37b0d613bb9214e3"
+      },
+      "prevHash": "7c1e381c02efdcd43373971a9e70b9653bcbf55da62420f86a7a0d5617e2254e",
+      "resourceId": "d3",
+      "resourceType": "DOC",
+      "seq": 3,
+      "source": "api:golden",
+      "timestamp": "2030-01-01T00:00:03.000000Z"
+    }
+  ],
+  "recordsDigest": "fc7e642c0ce984ef3f9cb13d0d74e85f25662adcbb084304386951a2e1ae69d3",
+  "selection": {
+    "actorId": "alice",
+    "eventType": null,
+    "from": null,
+    "resourceId": null,
+    "resourceType": null,
+    "seqFrom": null,
+    "seqTo": null,
+    "to": null
+  },
+  "signature": "S2bUpOqulCP83uz9eaYk1Lk32bI05ED/MMU/wpl3O9ZInUIpaXETMonJp7BqbpyLXdnaWLUTUhl7XOhAChgcDw==",
+  "signatureAlgorithm": "Ed25519",
+  "signer": {
+    "keyId": "21fe31dfa154a261",
+    "publicKey": "11qYAYKxCrfVS/7TyWQHOg7hcvPapiMlrwIaaPcHURo="
+  }
+}

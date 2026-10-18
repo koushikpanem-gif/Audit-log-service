@@ -4,11 +4,13 @@ import com.auditlog.config.AuditConfiguration;
 import com.auditlog.core.crypto.CanonicalJson;
 import com.auditlog.core.crypto.CheckpointSigner;
 import com.auditlog.core.crypto.V1Hashes;
+import com.auditlog.domain.BundleCompleteness;
+import com.auditlog.domain.BundlePurpose;
+import com.auditlog.domain.BundleSelection;
 import com.auditlog.store.AuditRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
@@ -16,11 +18,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.time.Clock;
-import java.time.Instant;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
@@ -30,26 +27,21 @@ import java.util.TreeMap;
 import java.util.UUID;
 
 /**
- * Builds exact v1 signed export bundles for small selections. Selection, checkpoint signing and
- * the BUNDLE_EXPORTED event happen in one write transaction so the selection head and the
- * post-event head are both known and cannot be confused.
+ * Builds signed audit-export-bundle/v1 documents. In ONE write transaction it captures the data
+ * head (throughSeq), selects matching live records, appends BUNDLE_EXPORTED, signs a checkpoint at
+ * the post-event head and signs the complete body. Any rejection throws inside the transaction so
+ * the meta-event and checkpoint are rolled back.
  */
 public final class ExportBundleService {
 
-    public static final int DEFAULT_MAX_RECORDS = 1000;
-    public static final int DEFAULT_MAX_BYTES = 8 * 1024 * 1024;
     public static final String FORMAT = "audit-export-bundle/v1";
 
-    private static final DateTimeFormatter UTC_MICROS =
-            DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ss.SSSSSS'Z'")
-                    .withZone(ZoneOffset.UTC);
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final AuditRepository repository;
     private final AuditConfiguration configuration;
     private final CheckpointSigner signer;
     private final AppendEventService appendService;
-    private final Clock clock;
     private final int maxRecords;
     private final int maxBytes;
 
@@ -57,10 +49,9 @@ public final class ExportBundleService {
             AuditRepository repository,
             AuditConfiguration configuration,
             CheckpointSigner signer,
-            AppendEventService appendService,
-            Clock clock) {
-        this(repository, configuration, signer, appendService, clock,
-                DEFAULT_MAX_RECORDS, DEFAULT_MAX_BYTES);
+            AppendEventService appendService) {
+        this(repository, configuration, signer, appendService,
+                configuration.exportMaxRecords(), configuration.exportMaxBytes());
     }
 
     public ExportBundleService(
@@ -68,98 +59,92 @@ public final class ExportBundleService {
             AuditConfiguration configuration,
             CheckpointSigner signer,
             AppendEventService appendService,
-            Clock clock,
             int maxRecords,
             int maxBytes) {
-        if (maxRecords < 1 || maxBytes < 1) {
-            throw new IllegalArgumentException("Export limits must be positive");
+        if (maxRecords < 1 || maxRecords > AuditConfiguration.MAX_EXPORT_RECORDS
+                || maxBytes < 1 || maxBytes > AuditConfiguration.MAX_EXPORT_BYTES) {
+            throw new IllegalArgumentException("Export limits must be positive and within supported bounds");
         }
         this.repository = repository;
         this.configuration = configuration;
         this.signer = signer;
         this.appendService = appendService;
-        this.clock = clock;
         this.maxRecords = maxRecords;
         this.maxBytes = maxBytes;
     }
 
-    public Map<String, Object> export(String actorId, String resourceId, String exportedBy)
+    public int maxRecords() {
+        return maxRecords;
+    }
+
+    public int maxBytes() {
+        return maxBytes;
+    }
+
+    /** Normal export: returns the exact final JCS bytes of the signed bundle. */
+    public byte[] export(BundleSelection selection, String exportedBy) throws SQLException {
+        return export(BundlePurpose.EXPORT, selection, exportedBy);
+    }
+
+    /** Purpose-aware entry point reused by later archive and report actions. */
+    public byte[] export(BundlePurpose purpose, BundleSelection selection, String exportedBy)
             throws SQLException {
-        boolean byActor = actorId != null;
-        if (byActor == (resourceId != null)) {
-            throw new IllegalArgumentException("Provide exactly one of actorId or resourceId");
+        if (purpose == null || selection == null) {
+            throw new IllegalArgumentException("purpose and selection are required");
         }
-        String selector = byActor ? actorId : resourceId;
-        if (selector.isBlank() || selector.getBytes(StandardCharsets.UTF_8).length > 1024) {
-            throw new IllegalArgumentException("Selection value must be non-empty and at most 1024 bytes");
-        }
-        CanonicalJson.canonicalize(Map.of("value", selector));
         if (exportedBy == null || exportedBy.isBlank()) {
             throw new IllegalArgumentException("exportedBy is required");
         }
+        if (purpose == BundlePurpose.EXPORT
+                && (selection.seqFrom() != null || selection.seqTo() != null
+                        || (selection.actorId() == null && selection.resourceId() == null))) {
+            throw new IllegalArgumentException(
+                    "An export requires actorId or resourceId and uses no sequence bounds");
+        }
+        if (purpose == BundlePurpose.RETENTION_ARCHIVE
+                && (selection.hasOrdinaryFilters()
+                        || selection.seqFrom() == null || selection.seqTo() == null)) {
+            throw new IllegalArgumentException(
+                    "An archive export uses sequence bounds and no ordinary filters");
+        }
         return repository.writeTransaction(connection ->
-                exportLocked(connection, byActor, selector, exportedBy));
+                exportLocked(connection, purpose, selection, exportedBy));
     }
 
-    private Map<String, Object> exportLocked(
-            Connection connection, boolean byActor, String selector, String exportedBy)
+    private byte[] exportLocked(
+            Connection connection, BundlePurpose purpose, BundleSelection selection, String exportedBy)
             throws SQLException {
-        long headSeq;
-        String headHash;
+        long throughSeq = 0;
         try (Statement statement = connection.createStatement();
-                ResultSet result = statement.executeQuery(
-                        "SELECT seq, chain_hash FROM audit_events ORDER BY seq DESC LIMIT 1")) {
-            if (!result.next()) {
-                throw new EmptyLedgerException("An empty ledger has no checkpoint to export");
+                ResultSet result = statement.executeQuery("SELECT MAX(seq) FROM audit_events")) {
+            if (result.next()) {
+                throughSeq = result.getLong(1);
             }
-            headSeq = result.getLong("seq");
-            headHash = result.getString("chain_hash");
         }
 
-        List<Map<String, Object>> records = selectRecords(connection, byActor, selector);
+        List<Map<String, Object>> records = selectRecords(connection, selection, throughSeq);
         byte[] recordsCanonical = CanonicalJson.canonicalize(
                 records, CanonicalJson.MAX_DOCUMENT_DEPTH, Integer.MAX_VALUE);
         String recordsDigest = sha256Hex(recordsCanonical);
-
-        Instant now = clock.instant().truncatedTo(ChronoUnit.MICROS);
-        String exportedAt = UTC_MICROS.format(now);
-        Map<String, Object> checkpoint = appendService.storeCheckpoint(
-                connection, headSeq, headHash, exportedAt);
-
         String bundleId = UUID.randomUUID().toString();
+
         Map<String, Object> eventPayload = new LinkedHashMap<>();
         eventPayload.put("bundleId", bundleId);
-        eventPayload.put("purpose", "EXPORT");
-        eventPayload.put("selectionType", byActor ? "ACTOR" : "RESOURCE");
-        eventPayload.put("selectionHeadSeq", headSeq);
-        eventPayload.put("selectionHeadChainHash", headHash);
+        eventPayload.put("purpose", purpose.name());
+        eventPayload.put("throughSeq", throughSeq);
         eventPayload.put("recordCount", records.size());
         eventPayload.put("recordsDigest", recordsDigest);
+        eventPayload.put("selectionDigest", sha256Hex(CanonicalJson.canonicalize(selection.toMap())));
         eventPayload.put("requestedBy", exportedBy);
         AppendedEvent exportEvent = appendService.appendSystemEvent(
                 connection, "BUNDLE_EXPORTED", exportedBy, "AUDIT_EXPORT", bundleId, eventPayload);
-
-        Map<String, Object> criteria = new LinkedHashMap<>();
-        criteria.put(byActor ? "actorId" : "resourceId", selector);
-        Map<String, Object> selection = new LinkedHashMap<>();
-        selection.put("criteria", criteria);
-        selection.put("order", "seq-asc");
-        selection.put("archivedRecords", "EXCLUDED");
-
-        Map<String, Object> completeness = new LinkedHashMap<>();
-        completeness.put("statement",
-                "All live non-archived records matching the selection at selectionHead; "
-                        + "no global inclusion proof, completeness is asserted by the signer");
-        completeness.put("selectionHeadSeq", headSeq);
-        completeness.put("selectionHeadChainHash", headHash);
-        completeness.put("postEventSeq", exportEvent.seq());
-        completeness.put("postEventChainHash", exportEvent.chainHash());
-        completeness.put("exportEventId", exportEvent.eventId());
+        Map<String, Object> checkpoint = appendService.storeCheckpoint(
+                connection, exportEvent.seq(), exportEvent.chainHash(), exportEvent.timestamp());
 
         Map<String, Object> headCheckpoint = new LinkedHashMap<>();
-        headCheckpoint.put("seq", headSeq);
-        headCheckpoint.put("chainHash", headHash);
-        headCheckpoint.put("createdAt", exportedAt);
+        headCheckpoint.put("seq", exportEvent.seq());
+        headCheckpoint.put("chainHash", exportEvent.chainHash());
+        headCheckpoint.put("createdAt", exportEvent.timestamp());
         headCheckpoint.put("keyId", checkpoint.get("keyId"));
         headCheckpoint.put("signature", checkpoint.get("signature"));
 
@@ -170,16 +155,16 @@ public final class ExportBundleService {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("format", FORMAT);
         body.put("bundleId", bundleId);
-        body.put("purpose", "EXPORT");
+        body.put("purpose", purpose.name());
         body.put("ledgerId", configuration.ledgerId());
         body.put("hashAlgorithm", "SHA-256");
         body.put("hashVersion", V1Hashes.HASH_VERSION);
         body.put("genesisHash", V1Hashes.genesisHash(configuration.ledgerId()));
         body.put("signatureAlgorithm", "Ed25519");
-        body.put("exportedAt", exportedAt);
+        body.put("exportedAt", exportEvent.timestamp());
         body.put("exportedBy", exportedBy);
-        body.put("selection", selection);
-        body.put("completeness", completeness);
+        body.put("selection", selection.toMap());
+        body.put("completeness", new BundleCompleteness(throughSeq).toMap());
         body.put("recordCount", records.size());
         body.put("recordsDigest", recordsDigest);
         body.put("records", records);
@@ -188,21 +173,46 @@ public final class ExportBundleService {
 
         Map<String, Object> bundle = new LinkedHashMap<>(body);
         bundle.put("signature", signer.signMessage(body, Integer.MAX_VALUE));
-        return bundle;
+        byte[] finalBytes = CanonicalJson.canonicalize(
+                bundle, CanonicalJson.MAX_DOCUMENT_DEPTH, Integer.MAX_VALUE);
+        if (finalBytes.length > maxBytes) {
+            throw tooLarge();
+        }
+        return finalBytes;
     }
 
     private List<Map<String, Object>> selectRecords(
-            Connection connection, boolean byActor, String selector) throws SQLException {
-        String column = byActor ? "actor_id" : "resource_id";
-        String sql = "SELECT seq, event_id, event_type, actor_id, resource_type, resource_id, "
-                + "occurred_at, recorded_at, source, hash_version, payload_commitments, "
-                + "content_hash, prev_hash, chain_hash FROM audit_events "
-                + "WHERE archived = 0 AND " + column + " = ? ORDER BY seq LIMIT ?";
+            Connection connection, BundleSelection selection, long throughSeq) throws SQLException {
+        StringBuilder sql = new StringBuilder(
+                "SELECT seq, event_id, event_type, actor_id, resource_type, resource_id, "
+                        + "occurred_at, recorded_at, source, hash_version, payload_commitments, "
+                        + "content_hash, prev_hash, chain_hash FROM audit_events "
+                        + "WHERE archived = 0 AND seq <= ?");
+        List<Object> parameters = new ArrayList<>();
+        parameters.add(throughSeq);
+        filter(sql, parameters, "actor_id = ?", selection.actorId());
+        filter(sql, parameters, "resource_type = ?", selection.resourceType());
+        filter(sql, parameters, "resource_id = ?", selection.resourceId());
+        filter(sql, parameters, "event_type = ?", selection.eventType());
+        filter(sql, parameters, "recorded_at >= ?", selection.from());
+        filter(sql, parameters, "recorded_at <= ?", selection.to());
+        filter(sql, parameters, "seq >= ?", selection.seqFrom());
+        filter(sql, parameters, "seq <= ?", selection.seqTo());
+        sql.append(" ORDER BY seq LIMIT ?");
+        parameters.add((long) maxRecords + 1);
+
         List<Map<String, Object>> records = new ArrayList<>();
+        // Incremental budget on record bytes alone; the exact check is the final one on the bundle.
         long bytes = 0;
-        try (PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setString(1, selector);
-            statement.setInt(2, maxRecords + 1);
+        try (PreparedStatement statement = connection.prepareStatement(sql.toString())) {
+            for (int index = 0; index < parameters.size(); index++) {
+                Object value = parameters.get(index);
+                if (value instanceof Long number) {
+                    statement.setLong(index + 1, number);
+                } else {
+                    statement.setString(index + 1, (String) value);
+                }
+            }
             try (ResultSet result = statement.executeQuery()) {
                 while (result.next()) {
                     if (records.size() >= maxRecords) {
@@ -210,7 +220,7 @@ public final class ExportBundleService {
                     }
                     Map<String, Object> record = readRecord(connection, result);
                     bytes += CanonicalJson.canonicalize(
-                            record, CanonicalJson.MAX_DOCUMENT_DEPTH, Integer.MAX_VALUE).length;
+                            record, CanonicalJson.MAX_DOCUMENT_DEPTH, Integer.MAX_VALUE).length + 1L;
                     if (bytes > maxBytes) {
                         throw tooLarge();
                     }
@@ -221,10 +231,15 @@ public final class ExportBundleService {
         return records;
     }
 
-    private ExportTooLargeException tooLarge() {
-        return new ExportTooLargeException(
-                "Selection exceeds the small-export limit of " + maxRecords + " records or "
-                        + maxBytes + " bytes; narrow the selection (export-set chunks are a later step)");
+    private static void filter(StringBuilder sql, List<Object> parameters, String clause, Object value) {
+        if (value != null) {
+            sql.append(" AND ").append(clause);
+            parameters.add(value);
+        }
+    }
+
+    private ExportLimitExceededException tooLarge() {
+        return new ExportLimitExceededException(maxRecords, maxBytes);
     }
 
     private Map<String, Object> readRecord(Connection connection, ResultSet row) throws SQLException {
@@ -282,15 +297,24 @@ public final class ExportBundleService {
         }
     }
 
-    public static final class ExportTooLargeException extends RuntimeException {
-        public ExportTooLargeException(String message) {
-            super(message);
-        }
-    }
+    /** Rejection of an oversized small export; carries only the configured limits, never data. */
+    public static final class ExportLimitExceededException extends RuntimeException {
+        private final int maxRecords;
+        private final int maxBytes;
 
-    public static final class EmptyLedgerException extends RuntimeException {
-        public EmptyLedgerException(String message) {
-            super(message);
+        public ExportLimitExceededException(int maxRecords, int maxBytes) {
+            super("Selection exceeds the configured small-export limits; narrow the selection "
+                    + "(complete export sets are not available in this build)");
+            this.maxRecords = maxRecords;
+            this.maxBytes = maxBytes;
+        }
+
+        public int maxRecords() {
+            return maxRecords;
+        }
+
+        public int maxBytes() {
+            return maxBytes;
         }
     }
 }

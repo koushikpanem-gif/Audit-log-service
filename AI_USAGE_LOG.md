@@ -192,7 +192,38 @@ Actual AI changes and validation only; not engineer approval.
   Python has no verify endpoint yet.
 - **Git:** No commit or engineer sign-off claimed yet.
 
-## Action 10 â€” signed bundles and Java verifier
+## Action 10 fix pass — align signed bundles with the small v1 contract
+
+- **Why:** The first Action 10 commit (`d2a1b92`) used invented `selection` and
+  `completeness` shapes, invented diagnostic codes, exit 2 for a missing key and a 409
+  for an empty ledger. The engineer re-issued Action 10 with a normative contract.
+- **Changed:** JSON Schemas in `docs/schemas/`; `BundleSelection/Completeness/Purpose/
+  Diagnostic*` domain types; `ExportBundleService` rewritten (selection captures
+  `throughSeq` before the meta-event; checkpoint at post-event head; limits
+  `AUDIT_EXPORT_MAX_RECORDS`/`AUDIT_EXPORT_MAX_BYTES` with a final-canonical-size check;
+  422 `EXPORT_LIMIT_EXCEEDED` with rollback; empty selection allowed); `BundleVerifier` and
+  CLI rewritten (trust statuses, 20 diagnostic codes, exit 0/1/2); tests rewritten;
+  Python generator, frozen golden fixtures, fixture and schema pytests; `docs/export-bundles.md`
+  rewritten.
+- **AI decisions:** Accepted: separate fix commit rather than amending. Assumed (listed in
+  `docs/export-bundles.md`): code mappings for hashVersion, selection and head violations;
+  non-canonical input accepted; malformed pinned key is exit 2. Modified: my recalled
+  RFC 8032 public key was wrong in the first generator run; the generator's assertion caught
+  it and I corrected it against the RFC text (the signature value matched). Also removed
+  the old test expectation that actorId plus resourceId is rejected, since the contract
+  allows combined filters. Rejected: adding networknt json-schema-validator; schemas are
+  validated by Python `jsonschema` 4.26.0 (new pinned dev dependency) instead.
+- **Validation:** `mvn -B -f java\pom.xml verify`: 101 tests, 0 failures, BUILD SUCCESS.
+  From `python\`: `ruff check .`, `ruff format` (no changes), `mypy src`, `pytest` (96 passed).
+  `pip check`, `bandit`, `pip-audit` not re-run in this pass.
+- **Not done:** no Python production verifier (Action 16), no export sets (Action 11), no
+  benchmark (Action 23); no independent Java-vs-Python verifier cross-check beyond the frozen
+  fixtures; the byte-limit boundary test asserts rejection at size-1 but the exact-size
+  acceptance is not asserted. No engineer sign-off.
+- **Git:** committed locally as `fix: align signed bundles with small v1 contract`; hash in
+  the final report.
+
+## Action 10 — signed bundles and Java verifier (original entry; superseded by the fix pass above)
 
 - **Changed:** Added `ExportBundleService` and `GET /audit/export` (auditor/admin,
   exactly one of `actorId`/`resourceId`) that builds the exact v1 bundle: selection,

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://audit-log.invalid/schemas/completeness.schema.json",
+  "title": "audit-export-bundle/v1 completeness",
+  "description": "Signed statements, not independent proofs of omission-free upstream capture or global chain membership. throughSeq is the data head captured inside the export write transaction BEFORE the BUNDLE_EXPORTED meta-event is appended; 0 permits an empty selection.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["scope", "throughSeq", "archivedRecordsExcluded", "upstreamCoverage", "assurance"],
+  "properties": {
+    "scope": {"const": "MATCHING_RETAINED_LIVE_RECORDS"},
+    "throughSeq": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+    "archivedRecordsExcluded": {"const": true},
+    "upstreamCoverage": {"const": "NOT_PROVEN"},
+    "assurance": {"const": "SIGNED_ASSERTION"}
+  }
+}

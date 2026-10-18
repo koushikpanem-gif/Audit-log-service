@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://audit-log.invalid/schemas/record.schema.json",
+  "title": "audit-export-bundle/v1 record",
+  "description": "One retained-live event. 'timestamp' is the hashed 'recordedAt'. disclosedLeaves holds only leaves still stored; an absent leaf is undisclosed/redacted and is NOT proof that its removal was authorized.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["seq", "eventId", "eventType", "actorId", "resourceType", "resourceId", "occurredAt", "timestamp", "source", "hashVersion", "payloadCommitments", "disclosedLeaves", "contentHash", "prevHash", "chainHash"],
+  "properties": {
+    "seq": {"type": "integer", "minimum": 1, "maximum": 9007199254740991},
+    "eventId": {"type": "string", "minLength": 1},
+    "eventType": {"type": "string", "minLength": 1},
+    "actorId": {"type": "string", "minLength": 1},
+    "resourceType": {"type": "string", "minLength": 1},
+    "resourceId": {"type": "string", "minLength": 1},
+    "occurredAt": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/timestamp"}]},
+    "timestamp": {"$ref": "#/$defs/timestamp"},
+    "source": {"type": "string", "minLength": 1},
+    "hashVersion": {"const": 1},
+    "payloadCommitments": {"type": "object", "additionalProperties": {"$ref": "#/$defs/tree"}},
+    "disclosedLeaves": {"type": "object", "additionalProperties": {"$ref": "#/$defs/leaf"}},
+    "contentHash": {"$ref": "#/$defs/hash"},
+    "prevHash": {"$ref": "#/$defs/hash"},
+    "chainHash": {"$ref": "#/$defs/hash"}
+  },
+  "$defs": {
+    "hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "timestamp": {"type": "string", "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]\\.[0-9]{6}Z$"},
+    "tree": {
+      "oneOf": [
+        {"$ref": "#/$defs/hash"},
+        {"type": "object", "additionalProperties": {"$ref": "#/$defs/tree"}},
+        {"type": "array", "items": {"$ref": "#/$defs/tree"}}
+      ]
+    },
+    "leaf": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["salt", "value"],
+      "properties": {
+        "salt": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "value": {"type": ["string", "number", "boolean", "null"]}
+      }
+    }
+  }
+}

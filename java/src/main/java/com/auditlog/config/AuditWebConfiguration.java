@@ -36,6 +36,8 @@ public class AuditWebConfiguration {
             "AUDIT_PAYLOAD_LIMIT_BYTES",
             "AUDIT_MAX_DEPTH",
             "AUDIT_MAX_LEAVES",
+            "AUDIT_EXPORT_MAX_RECORDS",
+            "AUDIT_EXPORT_MAX_BYTES",
             "AUDIT_SIGNING_PRIVATE_KEY",
             "AUDIT_SIGNING_PUBLIC_KEY",
             "AUDIT_API_KEYS_FILE"
@@ -99,9 +101,8 @@ public class AuditWebConfiguration {
             JdbcAuditRepository repository,
             AuditConfiguration configuration,
             CheckpointSigner signer,
-            AppendEventService appendService,
-            Clock auditClock) {
-        return new ExportBundleService(repository, configuration, signer, appendService, auditClock);
+            AppendEventService appendService) {
+        return new ExportBundleService(repository, configuration, signer, appendService);
     }
 
     @Bean

@@ -22,9 +22,18 @@ public record AuditConfiguration(
         int payloadLimitBytes,
         int maxDepth,
         int maxLeaves,
+        int exportMaxRecords,
+        int exportMaxBytes,
         Path signingPrivateKey,
         Path signingPublicKey,
         Path apiKeysFile) {
+
+    /** Operational policy defaults for small bundles, not cryptographic constants. */
+    public static final int DEFAULT_EXPORT_MAX_RECORDS = 1000;
+    public static final int DEFAULT_EXPORT_MAX_BYTES = 8 * 1024 * 1024;
+    /** Implementation-safe ceilings so the default offline verifier input cap can read a bundle. */
+    public static final int MAX_EXPORT_RECORDS = 100_000;
+    public static final int MAX_EXPORT_BYTES = 64 * 1024 * 1024;
 
     private static final BigDecimal MAX_RETENTION_DAYS = BigDecimal.valueOf(500_000);
     private static final Pattern SHA256 = Pattern.compile("[0-9a-f]{64}");
@@ -71,6 +80,10 @@ public record AuditConfiguration(
         bounded("AUDIT_PAYLOAD_LIMIT_BYTES", payloadLimitBytes, requestLimitBytes);
         bounded("AUDIT_MAX_DEPTH", maxDepth, 10);
         bounded("AUDIT_MAX_LEAVES", maxLeaves, 500);
+        int exportMaxRecords = positiveInt(values, "AUDIT_EXPORT_MAX_RECORDS", DEFAULT_EXPORT_MAX_RECORDS);
+        int exportMaxBytes = positiveInt(values, "AUDIT_EXPORT_MAX_BYTES", DEFAULT_EXPORT_MAX_BYTES);
+        bounded("AUDIT_EXPORT_MAX_RECORDS", exportMaxRecords, MAX_EXPORT_RECORDS);
+        bounded("AUDIT_EXPORT_MAX_BYTES", exportMaxBytes, MAX_EXPORT_BYTES);
 
         String apiKeysValue = values.get("AUDIT_API_KEYS_FILE");
         if (apiKeysValue != null && apiKeysValue.isBlank()) {
@@ -94,6 +107,8 @@ public record AuditConfiguration(
                 payloadLimitBytes,
                 maxDepth,
                 maxLeaves,
+                exportMaxRecords,
+                exportMaxBytes,
                 Path.of(get(values, "AUDIT_SIGNING_PRIVATE_KEY", "audit-data/signing-private.pem")),
                 Path.of(get(values, "AUDIT_SIGNING_PUBLIC_KEY", "audit-data/signing-public.b64")),
                 apiKeys);

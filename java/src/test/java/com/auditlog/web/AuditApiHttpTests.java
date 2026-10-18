@@ -84,6 +84,14 @@ class AuditApiHttpTests {
                 .andExpect(jsonPath("$.error.code").value("INVALID_INPUT"));
         mockMvc.perform(get("/audit/export").param("actorId", "a").param("resourceId", "b")
                         .header("X-API-Key", AUDITOR))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.recordCount").value(0));
+        mockMvc.perform(get("/audit/export").param("actorId", "a")
+                        .param("from", "2030-01-02T00:00:00.000000Z").param("to", "2030-01-01T00:00:00.000000Z")
+                        .header("X-API-Key", AUDITOR))
+                .andExpect(status().isUnprocessableEntity());
+        mockMvc.perform(get("/audit/export").param("actorId", "a").param("from", "yesterday")
+                        .header("X-API-Key", AUDITOR))
                 .andExpect(status().isUnprocessableEntity());
 
         String body = mockMvc.perform(get("/audit/export").param("actorId", "actor-export")
@@ -100,7 +108,13 @@ class AuditApiHttpTests {
                 body.getBytes(java.nio.charset.StandardCharsets.UTF_8),
                 BundleVerifier.Options.pinned(publicKey));
 
-        org.junit.jupiter.api.Assertions.assertTrue(result.verified(), result.violations().toString());
+        org.junit.jupiter.api.Assertions.assertEquals(
+                BundleVerifier.Status.VERIFIED, result.status(), result.diagnostics().toString());
+        org.junit.jupiter.api.Assertions.assertArrayEquals(
+                com.auditlog.core.crypto.CanonicalJson.canonicalize(
+                        objectMapper.readValue(body, Object.class), 32, Integer.MAX_VALUE),
+                body.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                "HTTP body is the exact canonical signed bytes");
         mockMvc.perform(get("/audit/verify").header("X-API-Key", AUDITOR))
                 .andExpect(jsonPath("$.intact").value(true));
     }

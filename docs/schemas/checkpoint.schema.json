@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://audit-log.invalid/schemas/checkpoint.schema.json",
+  "title": "audit-export-bundle/v1 headCheckpoint",
+  "description": "The signed message is JCS({type:'audit-checkpoint/v1',ledgerId,seq,chainHash,createdAt}); keyId and signature are outside the signed message. ledgerId comes from the enclosing bundle.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["seq", "chainHash", "createdAt", "keyId", "signature"],
+  "properties": {
+    "seq": {"type": "integer", "minimum": 1, "maximum": 9007199254740991},
+    "chainHash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "createdAt": {"type": "string", "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]\\.[0-9]{6}Z$"},
+    "keyId": {"type": "string", "pattern": "^[0-9a-f]{16}$"},
+    "signature": {"type": "string", "pattern": "^[A-Za-z0-9+/]{86}==$"}
+  }
+}

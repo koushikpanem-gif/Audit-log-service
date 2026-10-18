@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://audit-log.invalid/schemas/selection.schema.json",
+  "title": "audit-export-bundle/v1 selection",
+  "description": "Exactly eight keys, always present. Text filters are null or non-empty; from/to are null or normalized UTC microsecond timestamps; seqFrom/seqTo are null or safe positive integers. Bounds are inclusive and all non-null filters are ANDed. Reversed from>to or seqFrom>seqTo ranges are rejected by the semantic validator (BUNDLE_SCHEMA_INVALID), which a schema cannot express.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["actorId", "resourceType", "resourceId", "eventType", "from", "to", "seqFrom", "seqTo"],
+  "properties": {
+    "actorId": {"type": ["string", "null"], "minLength": 1},
+    "resourceType": {"type": ["string", "null"], "minLength": 1},
+    "resourceId": {"type": ["string", "null"], "minLength": 1},
+    "eventType": {"type": ["string", "null"], "minLength": 1},
+    "from": {"$ref": "#/$defs/nullableTimestamp"},
+    "to": {"$ref": "#/$defs/nullableTimestamp"},
+    "seqFrom": {"$ref": "#/$defs/nullableSafePositive"},
+    "seqTo": {"$ref": "#/$defs/nullableSafePositive"}
+  },
+  "$defs": {
+    "nullableTimestamp": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "string", "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]\\.[0-9]{6}Z$"}
+      ]
+    },
+    "nullableSafePositive": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "integer", "minimum": 1, "maximum": 9007199254740991}
+      ]
+    }
+  }
+}
