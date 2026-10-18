@@ -26,8 +26,7 @@ cd python
 | `POST /audit/export-sets` (202 + Location) | auditor, admin |
 | `GET /audit/export-sets/{id}`, `.../manifest`, `.../chunks/{name}` | auditor, admin |
 
-Not built (Action 20 onward). It authenticates and checks the role, then returns **501 NOT_IMPLEMENTED** and never fabricates success:
-`GET /compliance/account-access-report`.
+Every route in the contract is now implemented in Python; the account-access report is described under Action 20 below.
 
 ## Redaction, retention and recovery (Action 19)
 
@@ -64,3 +63,15 @@ Not built (Action 20 onward). It authenticates and checks the role, then returns
 - `/docs` is a plain HTML route table, not Swagger UI.
 - The Java controller has no `POST /audit/admin/checkpoints` even though the requirements list it. Python implements it. This is a Java gap to fix in a later action.
 - Not yet run for Python: bandit and pip-audit.
+
+## Compliance reporting (Action 20)
+
+- `GET /compliance/account-access-report` (auditor, admin) needs exactly one of `accountId` or `actorId` plus explicit `from` and `to` (inclusive UTC on `recordedAt`). Anything else is 422 `INVALID_INPUT` with no side effects.
+- The ACCOUNT_DATA_ACCESS contract (`account_access.py`, enforced on append since Action 15) fixes the enums, the OTHER/DENIED conditions and the field limits.
+- `account_report.py` does everything in **one write transaction**: verify the whole ledger on that connection, select matching retained-live events at or before the verified head, append `COMPLIANCE_REPORT_GENERATED` and a checkpoint, then sign the `COMPLIANCE_REPORT` evidence bundle. Concurrent appends wait on the write lock and cannot appear in the report. Any failure rolls back the meta-event and checkpoint.
+- `verifiedDataHead` (what was verified and selected) is separate from `postReportHead` (the checkpoint over the meta-event).
+- Missing grouping leaves (for example redacted) count as `UNKNOWN_REDACTED`; stored values outside the enum count as `UNKNOWN_INVALID`. Neither is assumed granted or denied, and both produce an exception row.
+- Cap: more than 10000 matching records (or evidence over `AUDIT_EXPORT_MAX_BYTES`) gives 422 `REPORT_LIMIT_EXCEEDED` with `details:[{limit:"records"|"bytes",value}]`. No partial result, no meta-event.
+- A failed ledger still returns a report, labelled `trustworthy:false` / `NOT TRUSTWORTHY`, with violations. The evidence signature does not repair it.
+- Trade-off: the whole-ledger verification runs under the write lock, so large ledgers block appends while a report runs (same as Java).
+- Parity with Java is tested in `tests/test_cross_service_parity.py`; see `cross-service-parity.md`.

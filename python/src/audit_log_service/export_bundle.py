@@ -244,31 +244,56 @@ class ExportBundleService:
             checkpoint = self._appender.store_checkpoint(
                 connection, event["seq"], event["chainHash"], event["timestamp"]
             )
+        body = self.signed_bundle(
+            "EXPORT",
+            bundle_id,
+            selection,
+            through_seq,
+            records,
+            records_digest,
+            event["timestamp"],
+            checkpoint,
+            exported_by,
+        )
+        return canonicalize(body, max_depth=MAX_DOCUMENT_DEPTH)
+
+    def signed_bundle(
+        self,
+        purpose: str,
+        bundle_id: str,
+        selection: Selection,
+        through_seq: int,
+        records: list[dict[str, Any]],
+        records_digest: str,
+        exported_at: str,
+        checkpoint: dict[str, Any],
+        exported_by: str,
+    ) -> dict[str, JsonValue]:
+        limits = self._configuration
         body: dict[str, JsonValue] = {
             "format": BUNDLE_FORMAT,
             "bundleId": bundle_id,
-            "purpose": "EXPORT",
+            "purpose": purpose,
             "ledgerId": limits.ledger_id,
             "hashAlgorithm": "SHA-256",
             "hashVersion": HASH_VERSION,
             "genesisHash": genesis_hash(limits.ledger_id),
             "signatureAlgorithm": "Ed25519",
-            "exportedAt": event["timestamp"],
+            "exportedAt": exported_at,
             "exportedBy": exported_by,
             "selection": selection.document(),
             "completeness": completeness(through_seq),
             "recordCount": len(records),
             "recordsDigest": records_digest,
             "records": cast(Any, records),
-            "headCheckpoint": checkpoint,
+            "headCheckpoint": cast(Any, checkpoint),
             "signer": {
                 "keyId": self._signer.key_id,
                 "publicKey": self._signer.public_key_base64,
             },
         }
-        signature = self._signer.sign_message(body, MAX_DOCUMENT_DEPTH)
-        body["signature"] = signature
-        return canonicalize(body, max_depth=MAX_DOCUMENT_DEPTH)
+        body["signature"] = self._signer.sign_message(body, MAX_DOCUMENT_DEPTH)
+        return body
 
     def _too_large(self) -> ApiError:
         limits = self._configuration

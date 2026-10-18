@@ -471,27 +471,6 @@ def test_public_endpoints_need_no_credentials(client: TestClient) -> None:
     assert client.get("/docs").status_code == 200
 
 
-@pytest.mark.parametrize(
-    ("method", "path", "headers", "role_ok"),
-    [
-        ("get", "/compliance/account-access-report", AUDITOR, True),
-    ],
-)
-def test_unbuilt_routes_never_fabricate_success(
-    client: TestClient,
-    method: str,
-    path: str,
-    headers: dict[str, str],
-    role_ok: bool,
-) -> None:
-    assert client.request(method, path).status_code == 401
-    assert client.request(method, path, headers=READER).status_code == 403
-    response = client.request(method, path, headers=headers)
-
-    assert response.status_code == 501
-    assert error_code(response) == "NOT_IMPLEMENTED"
-
-
 def test_event_mutation_methods_are_not_exposed(client: TestClient) -> None:
     event_id = post(client, event_body()).json()["eventId"]
     for method in ("put", "patch", "delete"):

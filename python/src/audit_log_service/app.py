@@ -13,6 +13,7 @@ from starlette.responses import HTMLResponse, JSONResponse, Response
 from starlette.routing import Route
 
 from audit_log_service import auth
+from audit_log_service.account_report import AccountAccessReportService
 from audit_log_service.archive import ArchiveService
 from audit_log_service.archive_audit import ArchiveAuditService
 from audit_log_service.auth import ApiKeyAuthenticator, Principal
@@ -43,17 +44,6 @@ from audit_log_service.store import (
 )
 
 Handler = Callable[[Request], Awaitable[Response]]
-
-# Routes in the contract that later actions implement. They authenticate and
-# authorize like the real routes, then report that they are not built.
-_UNBUILT: tuple[tuple[str, str, frozenset[str], str], ...] = (
-    (
-        "GET",
-        "/compliance/account-access-report",
-        auth.AUDITOR_ROLES,
-        "The account-access report",
-    ),
-)
 
 _REDACTION_FIELDS = frozenset({"eventId", "paths", "reason", "ticketId"})
 
@@ -86,6 +76,13 @@ class AuditApi:
         )
         self.bundle_service = ExportBundleService(
             store, configuration, signer, self.append_service
+        )
+        self.report_service = AccountAccessReportService(
+            store,
+            configuration,
+            self.verifier,
+            self.append_service,
+            self.bundle_service,
         )
         self.export_sets = ExportSetService(
             store, configuration, signer, self.append_service, clock
@@ -333,16 +330,18 @@ class AuditApi:
 
         return Response(await run_in_threadpool(read), media_type="application/json")
 
-    def unbuilt(self, roles: frozenset[str], feature: str) -> Handler:
-        async def handler(request: Request) -> Response:
-            self.principal(request, roles)
-            raise ApiError(
-                501,
-                "NOT_IMPLEMENTED",
-                f"{feature} is not implemented in the Python service yet",
-            )
-
-        return handler
+    async def account_access_report(self, request: Request) -> Response:
+        principal = self.principal(request, auth.AUDITOR_ROLES)
+        params = request.query_params
+        report = await run_in_threadpool(
+            self.report_service.generate,
+            params.get("accountId"),
+            params.get("actorId"),
+            params.get("from"),
+            params.get("to"),
+            principal.name,
+        )
+        return JSONResponse(report)
 
     async def openapi(self, _: Request) -> Response:
         return JSONResponse(openapi_document())
@@ -474,9 +473,12 @@ def create_app(
         ),
         Route("/audit/archive-audit", api.archive_audit_report, methods=["GET"]),
     ]
-    routes.extend(
-        Route(path, api.unbuilt(roles, feature), methods=[method])
-        for method, path, roles, feature in _UNBUILT
+    routes.append(
+        Route(
+            "/compliance/account-access-report",
+            api.account_access_report,
+            methods=["GET"],
+        )
     )
     handlers: dict[Any, Any] = {
         ApiError: _api_error,
@@ -580,13 +582,16 @@ def openapi_document() -> dict[str, Any]:
             "get": operation("Audit archive files", "auditor", 401, 403, 503)
         },
     }
-    for method, path, roles, feature in _UNBUILT:
-        role = "admin" if roles == auth.ADMIN_ROLES else "auditor"
-        paths[path] = {
-            method.lower(): operation(
-                f"{feature} - always 501 in this build", role, 401, 403, 501
-            )
-        }
+    paths["/compliance/account-access-report"] = {
+        "get": operation(
+            "Account-access report (one snapshot; capped at 10000 records)",
+            "auditor",
+            401,
+            403,
+            422,
+            503,
+        )
+    }
     return {
         "openapi": "3.0.3",
         "info": {"title": "Audit log service (Python)", "version": "0.1.0"},

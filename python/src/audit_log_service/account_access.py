@@ -40,6 +40,10 @@ _ENUMS: dict[str, frozenset[str]] = {
 }
 
 
+def allowed_values(name: str) -> frozenset[str]:
+    return _ENUMS[name]
+
+
 def validate(
     event_type: str, resource_type: str, payload: Mapping[str, JsonValue]
 ) -> None:
