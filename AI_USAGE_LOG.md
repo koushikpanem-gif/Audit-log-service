@@ -106,3 +106,27 @@ Actual AI changes and validation only; not engineer approval.
   run.
 - **Git:** Authorized commit message: `feat: implement SQLite schema and
   transactions`. No push or engineer sign-off claimed.
+
+## Action 07 — serialized event append
+
+- **Changed:** Added a strict append input model and Java append service. The
+  service validates configured request/payload/depth/leaf limits, rejects
+  caller-supplied source/timestamp fields and reserved event types, normalizes
+  `occurredAt` and enforces 300-second future skew. Under the existing
+  `BEGIN IMMEDIATE` transaction it reads the current head, assigns a UUID and
+  nondecreasing UTC-microsecond server time, creates salted payload
+  commitments, computes v1 content/chain hashes, and inserts the event, leaves
+  and interval checkpoints atomically. Added injectable clock/ID/salt sources,
+  with secure random defaults, and documented the append transaction in
+  ADR-0003.
+- **Validation:** The first focused test run exposed an envelope-string
+  validation bug; corrected it and reran successfully. Final
+  `mvn -B -f java\pom.xml verify` passed (44 tests), including 20 concurrent
+  Java writers, clock rollback/ties, future-skew rejection, empty payload and
+  null leaves, restart continuity, strict unknown/source/timestamp rejection,
+  configured limits, valid signed interval checkpoints, and rollback on leaf
+  and checkpoint insertion failures. Python source was unchanged; its
+  regression checks passed in the project venv: Ruff check/format, mypy, pytest
+  (76 passed), and `pip check`. Cross-process stress, remote CI and live API
+  integration were not run.
+- **Git:** No commit or engineer sign-off claimed yet.

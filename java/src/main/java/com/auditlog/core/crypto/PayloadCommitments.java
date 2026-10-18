@@ -29,7 +29,7 @@ public final class PayloadCommitments {
         return commit(payload, PayloadCommitments::randomSalt);
     }
 
-    static CommitmentResult commit(Map<String, ?> payload, Supplier<byte[]> saltSource) {
+    public static CommitmentResult commit(Map<String, ?> payload, Supplier<byte[]> saltSource) {
         int expectedLeafCount = validatePayloadSize(payload);
 
         Map<String, Object> commitments = new LinkedHashMap<>();
@@ -403,7 +403,7 @@ public final class PayloadCommitments {
         return parent + "/" + token.replace("~", "~0").replace("/", "~1");
     }
 
-    private static byte[] randomSalt() {
+    public static byte[] randomSalt() {
         byte[] salt = new byte[32];
         RANDOM.nextBytes(salt);
         return salt;

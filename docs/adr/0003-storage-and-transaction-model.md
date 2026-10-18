@@ -24,6 +24,14 @@
   closes its connection. WAL is enabled at initialization and checked for each
   subsequent connection; connection-local durability, foreign-key, secure
   delete, and busy-timeout pragmas are applied on every open.
+- **Append transaction:** The event append service validates and copies the
+  input before opening a write transaction. Within `BEGIN IMMEDIATE`, it reads
+  the latest sequence, chain hash and recorded time; assigns the UUID and
+  monotonic UTC-microsecond server timestamp; commits payload scalars; computes
+  the v1 content and chain hashes; then inserts the event, leaves and any
+  interval checkpoint. A failure at any insertion rolls back the complete
+  append. Event requests have no source or server-timestamp field; source is a
+  separate value supplied by the authenticated-principal boundary.
 - **Schema v1:** Tables cover `ledger_meta`, `audit_events`, `payload_leaves`
   and `checkpoints`, with the specified query indexes and immutable-row
   triggers. Audit-event updates permit only an `archived=0` to `archived=1`
