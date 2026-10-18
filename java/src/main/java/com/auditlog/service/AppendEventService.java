@@ -80,6 +80,8 @@ public final class AppendEventService {
             throws SQLException {
         validateEnvelope(request, principalSource);
         Map<String, Object> payload = copyAndValidatePayload(request.payload());
+        com.auditlog.domain.AccountAccessContract.validate(
+                request.eventType(), request.resourceType(), payload);
         String occurredAt = normalizeOccurredAt(request.occurredAt());
 
         return repository.writeTransaction(connection -> appendLocked(

@@ -141,10 +141,32 @@ public final class ExportBundleService {
         Map<String, Object> checkpoint = appendService.storeCheckpoint(
                 connection, exportEvent.seq(), exportEvent.chainHash(), exportEvent.timestamp());
 
+        Map<String, Object> bundle = signedBundle(
+                purpose, bundleId, selection, throughSeq, records, recordsDigest, exportEvent, checkpoint,
+                exportedBy);
+        byte[] finalBytes = CanonicalJson.canonicalize(
+                bundle, CanonicalJson.MAX_DOCUMENT_DEPTH, Integer.MAX_VALUE);
+        if (finalBytes.length > maxBytes) {
+            throw tooLarge();
+        }
+        return finalBytes;
+    }
+
+    /** Assembles and signs a v1 bundle body; shared by exports and compliance-report evidence. */
+    Map<String, Object> signedBundle(
+            BundlePurpose purpose,
+            String bundleId,
+            BundleSelection selection,
+            long throughSeq,
+            List<Map<String, Object>> records,
+            String recordsDigest,
+            AppendedEvent headEvent,
+            Map<String, Object> checkpoint,
+            String exportedBy) {
         Map<String, Object> headCheckpoint = new LinkedHashMap<>();
-        headCheckpoint.put("seq", exportEvent.seq());
-        headCheckpoint.put("chainHash", exportEvent.chainHash());
-        headCheckpoint.put("createdAt", exportEvent.timestamp());
+        headCheckpoint.put("seq", headEvent.seq());
+        headCheckpoint.put("chainHash", headEvent.chainHash());
+        headCheckpoint.put("createdAt", headEvent.timestamp());
         headCheckpoint.put("keyId", checkpoint.get("keyId"));
         headCheckpoint.put("signature", checkpoint.get("signature"));
 
@@ -161,7 +183,7 @@ public final class ExportBundleService {
         body.put("hashVersion", V1Hashes.HASH_VERSION);
         body.put("genesisHash", V1Hashes.genesisHash(configuration.ledgerId()));
         body.put("signatureAlgorithm", "Ed25519");
-        body.put("exportedAt", exportEvent.timestamp());
+        body.put("exportedAt", headEvent.timestamp());
         body.put("exportedBy", exportedBy);
         body.put("selection", selection.toMap());
         body.put("completeness", new BundleCompleteness(throughSeq).toMap());
@@ -173,12 +195,7 @@ public final class ExportBundleService {
 
         Map<String, Object> bundle = new LinkedHashMap<>(body);
         bundle.put("signature", signer.signMessage(body, Integer.MAX_VALUE));
-        byte[] finalBytes = CanonicalJson.canonicalize(
-                bundle, CanonicalJson.MAX_DOCUMENT_DEPTH, Integer.MAX_VALUE);
-        if (finalBytes.length > maxBytes) {
-            throw tooLarge();
-        }
-        return finalBytes;
+        return bundle;
     }
 
     private List<Map<String, Object>> selectRecords(

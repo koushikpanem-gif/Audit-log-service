@@ -1,6 +1,7 @@
 # ADR-0008: Internal account-access compliance report
 
-- **Status:** Proposed pending Scenario C stakeholder/engineer clarification.
+- **Status:** Proposed pending Scenario C stakeholder/engineer clarification. Java implementation exists
+  (Action 15, see [account-access-report.md](../account-access-report.md)); answers remain unconfirmed assumptions.
 - **Context:** The assignment requests an account-access report but explicitly
   requires unresolved business/legal questions to remain visible.
 - **Decision:** The provisional scope is an on-demand report for an internal

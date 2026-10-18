@@ -56,7 +56,7 @@ public class AuditController {
     private final RedactionCleanupService cleanupService;
     private final ArchiveService archiveService;
     private final ArchiveAuditService archiveAuditService;
-
+    private final com.auditlog.service.AccountAccessReportService reportService;
     public AuditController(
             AppendEventService appendService,
             EventQueryService queryService,
@@ -67,7 +67,9 @@ public class AuditController {
             RedactionService redactionService,
             RedactionCleanupService cleanupService,
             ArchiveService archiveService,
-            ArchiveAuditService archiveAuditService) {
+            ArchiveAuditService archiveAuditService,
+            com.auditlog.service.AccountAccessReportService reportService) {
+        this.reportService = reportService;
         this.archiveService = archiveService;
         this.archiveAuditService = archiveAuditService;
         this.redactionService = redactionService;
@@ -204,6 +206,19 @@ public class AuditController {
     @SecurityRequirement(name = "apiKeyAuth")
     public Map<String, Object> reconcileArchives() throws SQLException {
         return archiveService.reconcile();
+    }
+
+    @GetMapping("/compliance/account-access-report")
+    @Operation(summary = "Account-access report for one account or actor and an explicit period (auditor). "
+            + "Appends a COMPLIANCE_REPORT_GENERATED event and checkpoint; capped at 10000 events.")
+    @SecurityRequirement(name = "apiKeyAuth")
+    public Map<String, Object> accountAccessReport(
+            @RequestParam(required = false) String accountId,
+            @RequestParam(required = false) String actorId,
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to,
+            HttpServletRequest httpRequest) throws SQLException {
+        return reportService.generate(accountId, actorId, from, to, principal(httpRequest).name());
     }
 
     @GetMapping("/audit/archive-audit")

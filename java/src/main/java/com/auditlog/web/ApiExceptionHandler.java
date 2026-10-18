@@ -32,6 +32,14 @@ public class ApiExceptionHandler {
                         java.util.Map.of("limit", "AUDIT_EXPORT_MAX_BYTES", "value", exception.maxBytes())))));
     }
 
+    @ExceptionHandler(com.auditlog.service.AccountAccessReportService.ReportLimitExceededException.class)
+    public ResponseEntity<ApiErrorResponse> reportLimit(
+            com.auditlog.service.AccountAccessReportService.ReportLimitExceededException exception) {
+        return ResponseEntity.status(422).body(new ApiErrorResponse(new ApiErrorResponse.Error(
+                "REPORT_LIMIT_EXCEEDED", exception.getMessage(),
+                java.util.List.of(java.util.Map.of("limit", exception.unit(), "value", exception.limit())))));
+    }
+
     @ExceptionHandler(ExportSetService.ExportSetException.class)
     public ResponseEntity<ApiErrorResponse> exportSet(ExportSetService.ExportSetException exception) {
         int status = switch (exception.kind()) {

@@ -345,3 +345,11 @@ Actual AI changes and validation only; not engineer approval.
 - **Not done / blocked:** no Python archive audit or cross-language checks; no multi-process tests;
   `bandit`/`pip-audit` not re-run; no human sign-off.
 - **Git:** one local commit, not pushed.
+
+## Action 15: consistent account-access reports (Java)
+
+- **Scope:** ACCOUNT_DATA_ACCESS contract and `GET /compliance/account-access-report` in Java only. Python not touched.
+- **AI decisions:** Accepted: verify, select, evidence and meta-event in one write transaction (added `LedgerVerifier.verify(Connection)`), reusing the export bundle builder (extracted `ExportBundleService.signedBundle`, behaviour unchanged). Chose full verification under the write lock for snapshot consistency, accepting writer blocking. Rejected: verifying in a separate snapshot then exporting. Assumption (unconfirmed): integrity-failed ledgers still produce a labeled report plus event/checkpoint; meta-event stores a selection digest, not the subject.
+- **Validation:** `mvn -B -f java\pom.xml verify` BUILD SUCCESS, 207 tests (19 new: contract, service incl. append/redaction/archive barrier tests with real SQLite, HTTP roles/validation). Python ruff check, ruff format --check, mypy, pytest (96 passed) re-run, unchanged code.
+- **Not done / blocked:** No multi-process tests; Python implementation and cross-language checks pending; bandit/pip-audit not re-run; Scenario C answers have no stakeholder confirmation; no human sign-off.
+- **Git:** single local commit `feat: implement consistent account-access reports`.

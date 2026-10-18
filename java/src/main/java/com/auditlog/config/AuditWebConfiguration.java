@@ -176,6 +176,18 @@ public class AuditWebConfiguration {
     }
 
     @Bean
+    public com.auditlog.service.AccountAccessReportService accountAccessReportService(
+            JdbcAuditRepository repository,
+            AuditConfiguration configuration,
+            CheckpointSigner signer,
+            AppendEventService appendService,
+            ExportBundleService exportBundleService,
+            LedgerVerifier ledgerVerifier) {
+        return new com.auditlog.service.AccountAccessReportService(
+                repository, configuration, signer, appendService, exportBundleService, ledgerVerifier);
+    }
+
+    @Bean
     public LedgerVerifier ledgerVerifier(
             JdbcAuditRepository repository,
             AuditConfiguration configuration,

@@ -114,6 +114,18 @@ public final class LedgerVerifier {
         });
     }
 
+    /**
+     * Verifies on a caller-owned connection, so a caller holding a write transaction verifies the
+     * exact state it is about to build on. The caller owns the transaction.
+     */
+    public VerificationReport verify(Connection connection) throws SQLException {
+        long started = System.nanoTime();
+        Instant verifiedAt = clock.instant();
+        try (Scan scan = new Scan(connection)) {
+            return scan.run(started, verifiedAt);
+        }
+    }
+
     private record RawEvent(
             long seq,
             Object eventId,
