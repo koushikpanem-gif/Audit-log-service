@@ -84,9 +84,15 @@ class SqliteStore:
         ledger_id: str,
         *,
         busy_timeout_ms: int = DEFAULT_BUSY_TIMEOUT_MS,
+        max_page_count: int | None = None,
     ) -> None:
         if busy_timeout_ms <= 0:
             raise ValueError("busy_timeout_ms must be positive")
+        if max_page_count is not None and max_page_count <= 0:
+            raise ValueError("max_page_count must be positive")
+        # Test seam: a small page cap makes SQLite raise SQLITE_FULL without
+        # filling a real disk. Production leaves it unset.
+        self.max_page_count = max_page_count
         self._path = path
         self._ledger_id = ledger_id
         self._busy_timeout_ms = busy_timeout_ms
@@ -110,6 +116,10 @@ class SqliteStore:
             connection.execute("PRAGMA foreign_keys = ON")
             connection.execute("PRAGMA secure_delete = ON")
             connection.execute("PRAGMA synchronous = FULL")
+            if self.max_page_count is not None:
+                connection.execute(
+                    f"PRAGMA max_page_count = {int(self.max_page_count)}"
+                )
             if read_only:
                 connection.execute("PRAGMA query_only = ON")
         except sqlite3.Error as exc:

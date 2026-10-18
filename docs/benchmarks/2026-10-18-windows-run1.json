@@ -1,0 +1,491 @@
+{
+  "tool": "scripts/benchmark.py",
+  "workload": {
+    "events": 2000,
+    "warmup": 200,
+    "concurrency_levels": [
+      1,
+      4
+    ],
+    "read_concurrency": 4,
+    "payload_leaves": 5,
+    "payload_bytes": 32,
+    "actors": 20,
+    "queries": 500,
+    "query_limit": 50,
+    "scan_pages": 100,
+    "verify_runs": 3,
+    "export_runs": 3,
+    "export_set_runs": 1,
+    "checkpoint_interval": 100,
+    "seed": 20261018
+  },
+  "environment": {
+    "capturedAt": "2026-10-18T22:06:33+00:00",
+    "os": "Windows-11-10.0.26200-SP0",
+    "machine": "AMD64",
+    "cpuModel": "AMD64 Family 23 Model 160 Stepping 0, AuthenticAMD",
+    "logicalCpus": 8,
+    "totalRamBytes": 16363024384,
+    "benchmarkClientPython": "3.15.0",
+    "javaVersion": "openjdk version \"21.0.12.1\" 2026-08-18 LTS\nOpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS)\nOpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing)",
+    "pythonSqlite": "3.53.4",
+    "sqliteJdbc": "3.53.4.0",
+    "pythonPackages": {
+      "starlette": "1.8.0",
+      "uvicorn": "0.54.0",
+      "pydantic": "2.14.1",
+      "cryptography": "50.0.2"
+    },
+    "git": {
+      "commit": "f3f6382f24d002834ad06a4337f026abeacbaf4e",
+      "dirtyJavaOrPython": true
+    },
+    "storage": {
+      "workDir": "C:\\Users\\koush\\Favorites\\audit-log-service\\benchmark-work\\20261018T220633Z",
+      "synchronous": "FULL (enforced by both services on every connection)",
+      "journalMode": "WAL",
+      "note": "Drive type is not detected; record it by hand when comparing runs."
+    }
+  },
+  "fsyncProbe": {
+    "iterations": 200,
+    "blockBytes": 4096,
+    "latencyMs": {
+      "min": 0.156,
+      "mean": 0.343,
+      "p50": 0.279,
+      "p95": 0.675,
+      "p99": 0.852,
+      "max": 1.348
+    },
+    "note": "Plain file write+fsync; SQLite WAL commit cost is comparable but not identical."
+  },
+  "results": [
+    {
+      "service": "java",
+      "idlePeakMemoryBytes": 269250560,
+      "append": {
+        "warmupEvents": 200,
+        "levels": [
+          {
+            "requests": 2000,
+            "concurrency": 1,
+            "statusCounts": {
+              "201": 2000
+            },
+            "okRequests": 2000,
+            "wallSeconds": 20.5583,
+            "throughputPerSec": 97.28,
+            "latencyMs": {
+              "min": 6.775,
+              "mean": 10.211,
+              "p50": 9.959,
+              "p95": 13.399,
+              "p99": 16.82,
+              "max": 35.62
+            },
+            "peakMemoryBytes": 274972672,
+            "ledgerSizeAfter": 2200,
+            "verifyAtThisSize": {
+              "status": 200,
+              "wallMs": 760.812,
+              "serverDurationMs": 732,
+              "checkedRecords": 2200,
+              "intact": true,
+              "checkpointsVerified": 22
+            }
+          },
+          {
+            "requests": 2000,
+            "concurrency": 4,
+            "statusCounts": {
+              "201": 2000
+            },
+            "okRequests": 2000,
+            "wallSeconds": 7.7576,
+            "throughputPerSec": 257.81,
+            "latencyMs": {
+              "min": 3.491,
+              "mean": 15.419,
+              "p50": 5.986,
+              "p95": 51.995,
+              "p99": 161.911,
+              "max": 1122.994
+            },
+            "peakMemoryBytes": 349757440,
+            "ledgerSizeAfter": 4200,
+            "verifyAtThisSize": {
+              "status": 200,
+              "wallMs": 527.884,
+              "serverDurationMs": 505,
+              "checkedRecords": 4200,
+              "intact": true,
+              "checkpointsVerified": 42
+            }
+          }
+        ]
+      },
+      "query": {
+        "filteredFirstPage": {
+          "requests": 500,
+          "concurrency": 4,
+          "statusCounts": {
+            "200": 500
+          },
+          "okRequests": 500,
+          "wallSeconds": 2.7646,
+          "throughputPerSec": 180.86,
+          "latencyMs": {
+            "min": 8.473,
+            "mean": 22.034,
+            "p50": 18.753,
+            "p95": 41.547,
+            "p99": 65.737,
+            "max": 94.091
+          }
+        },
+        "getByEventId": {
+          "requests": 500,
+          "concurrency": 4,
+          "statusCounts": {
+            "200": 500
+          },
+          "okRequests": 500,
+          "wallSeconds": 1.267,
+          "throughputPerSec": 394.63,
+          "latencyMs": {
+            "min": 2.307,
+            "mean": 10.009,
+            "p50": 5.156,
+            "p95": 32.625,
+            "p99": 64.392,
+            "max": 121.696
+          }
+        },
+        "cursorScan": {
+          "pagesRequested": 84,
+          "recordsRead": 4200,
+          "limit": 50,
+          "reachedEnd": true,
+          "statusCounts": {
+            "200": 84
+          },
+          "wallSeconds": 0.8555,
+          "recordsPerSec": 4909.28,
+          "pageLatencyMs": {
+            "min": 7.489,
+            "mean": 9.827,
+            "p50": 9.687,
+            "p95": 12.215,
+            "p99": 13.158,
+            "max": 13.158
+          }
+        },
+        "peakMemoryBytes": 402280448
+      },
+      "verify": {
+        "runs": [
+          {
+            "status": 200,
+            "wallMs": 489.185,
+            "serverDurationMs": 471,
+            "checkedRecords": 4200,
+            "intact": true,
+            "checkpointsVerified": 42
+          },
+          {
+            "status": 200,
+            "wallMs": 489.656,
+            "serverDurationMs": 464,
+            "checkedRecords": 4200,
+            "intact": true,
+            "checkpointsVerified": 42
+          },
+          {
+            "status": 200,
+            "wallMs": 488.023,
+            "serverDurationMs": 484,
+            "checkedRecords": 4200,
+            "intact": true,
+            "checkpointsVerified": 42
+          }
+        ],
+        "wallLatencyMs": {
+          "min": 488.023,
+          "mean": 488.955,
+          "p50": 489.185,
+          "p95": 489.656,
+          "p99": 489.656,
+          "max": 489.656
+        },
+        "peakMemoryBytes": 402280448
+      },
+      "export": {
+        "actor": "actor-0",
+        "smallBundle": {
+          "runs": [
+            {
+              "status": 200,
+              "wallMs": 201.992,
+              "bytes": 320375,
+              "recordCount": 210
+            },
+            {
+              "status": 200,
+              "wallMs": 164.671,
+              "bytes": 320375,
+              "recordCount": 210
+            },
+            {
+              "status": 200,
+              "wallMs": 143.26,
+              "bytes": 320375,
+              "recordCount": 210
+            }
+          ],
+          "wallLatencyMs": {
+            "min": 143.26,
+            "mean": 169.974,
+            "p50": 164.671,
+            "p95": 201.992,
+            "p99": 201.992,
+            "max": 201.992
+          }
+        },
+        "exportSet": {
+          "runs": [
+            {
+              "createStatus": 202,
+              "finalStatus": "READY",
+              "secondsToTerminal": 0.226,
+              "totalRecords": 210,
+              "chunkCount": 1
+            }
+          ]
+        },
+        "peakMemoryBytes": 428683264
+      },
+      "finalPeakMemoryBytes": 428683264,
+      "storageBytes": {
+        "audit.db": 7057408,
+        "audit.db-wal": 0,
+        "audit.db-shm": 0
+      },
+      "functionalErrors": []
+    },
+    {
+      "service": "python",
+      "idlePeakMemoryBytes": 46514176,
+      "append": {
+        "warmupEvents": 200,
+        "levels": [
+          {
+            "requests": 2000,
+            "concurrency": 1,
+            "statusCounts": {
+              "201": 2000
+            },
+            "okRequests": 2000,
+            "wallSeconds": 17.0945,
+            "throughputPerSec": 117.0,
+            "latencyMs": {
+              "min": 6.202,
+              "mean": 8.494,
+              "p50": 8.48,
+              "p95": 10.692,
+              "p99": 12.501,
+              "max": 20.163
+            },
+            "peakMemoryBytes": 49037312,
+            "ledgerSizeAfter": 2200,
+            "verifyAtThisSize": {
+              "status": 200,
+              "wallMs": 640.422,
+              "serverDurationMs": 613,
+              "checkedRecords": 2200,
+              "intact": true,
+              "checkpointsVerified": 22
+            }
+          },
+          {
+            "requests": 2000,
+            "concurrency": 4,
+            "statusCounts": {
+              "201": 2000
+            },
+            "okRequests": 2000,
+            "wallSeconds": 6.9716,
+            "throughputPerSec": 286.88,
+            "latencyMs": {
+              "min": 3.352,
+              "mean": 13.826,
+              "p50": 5.422,
+              "p95": 37.439,
+              "p99": 161.949,
+              "max": 1968.845
+            },
+            "peakMemoryBytes": 54226944,
+            "ledgerSizeAfter": 4200,
+            "verifyAtThisSize": {
+              "status": 200,
+              "wallMs": 1032.907,
+              "serverDurationMs": 1014,
+              "checkedRecords": 4200,
+              "intact": true,
+              "checkpointsVerified": 42
+            }
+          }
+        ]
+      },
+      "query": {
+        "filteredFirstPage": {
+          "requests": 500,
+          "concurrency": 4,
+          "statusCounts": {
+            "200": 500
+          },
+          "okRequests": 500,
+          "wallSeconds": 7.2192,
+          "throughputPerSec": 69.26,
+          "latencyMs": {
+            "min": 42.727,
+            "mean": 57.629,
+            "p50": 55.623,
+            "p95": 76.604,
+            "p99": 85.901,
+            "max": 104.194
+          }
+        },
+        "getByEventId": {
+          "requests": 500,
+          "concurrency": 4,
+          "statusCounts": {
+            "200": 500
+          },
+          "okRequests": 500,
+          "wallSeconds": 1.2656,
+          "throughputPerSec": 395.08,
+          "latencyMs": {
+            "min": 2.348,
+            "mean": 10.1,
+            "p50": 6.215,
+            "p95": 25.152,
+            "p99": 51.438,
+            "max": 62.128
+          }
+        },
+        "cursorScan": {
+          "pagesRequested": 84,
+          "recordsRead": 4200,
+          "limit": 50,
+          "reachedEnd": true,
+          "statusCounts": {
+            "200": 84
+          },
+          "wallSeconds": 1.1321,
+          "recordsPerSec": 3709.94,
+          "pageLatencyMs": {
+            "min": 11.153,
+            "mean": 13.139,
+            "p50": 12.779,
+            "p95": 14.551,
+            "p99": 36.074,
+            "max": 36.074
+          }
+        },
+        "peakMemoryBytes": 56459264
+      },
+      "verify": {
+        "runs": [
+          {
+            "status": 200,
+            "wallMs": 1015.273,
+            "serverDurationMs": 1009,
+            "checkedRecords": 4200,
+            "intact": true,
+            "checkpointsVerified": 42
+          },
+          {
+            "status": 200,
+            "wallMs": 1044.095,
+            "serverDurationMs": 1037,
+            "checkedRecords": 4200,
+            "intact": true,
+            "checkpointsVerified": 42
+          },
+          {
+            "status": 200,
+            "wallMs": 1154.492,
+            "serverDurationMs": 1125,
+            "checkedRecords": 4200,
+            "intact": true,
+            "checkpointsVerified": 42
+          }
+        ],
+        "wallLatencyMs": {
+          "min": 1015.273,
+          "mean": 1071.287,
+          "p50": 1044.095,
+          "p95": 1154.492,
+          "p99": 1154.492,
+          "max": 1154.492
+        },
+        "peakMemoryBytes": 56459264
+      },
+      "export": {
+        "actor": "actor-0",
+        "smallBundle": {
+          "runs": [
+            {
+              "status": 200,
+              "wallMs": 140.93,
+              "bytes": 320377,
+              "recordCount": 210
+            },
+            {
+              "status": 200,
+              "wallMs": 117.669,
+              "bytes": 320377,
+              "recordCount": 210
+            },
+            {
+              "status": 200,
+              "wallMs": 114.331,
+              "bytes": 320377,
+              "recordCount": 210
+            }
+          ],
+          "wallLatencyMs": {
+            "min": 114.331,
+            "mean": 124.31,
+            "p50": 117.669,
+            "p95": 140.93,
+            "p99": 140.93,
+            "max": 140.93
+          }
+        },
+        "exportSet": {
+          "runs": [
+            {
+              "createStatus": 202,
+              "finalStatus": "READY",
+              "secondsToTerminal": 0.107,
+              "totalRecords": 210,
+              "chunkCount": 1
+            }
+          ]
+        },
+        "peakMemoryBytes": 56459264
+      },
+      "finalPeakMemoryBytes": 56459264,
+      "storageBytes": {
+        "audit.db": 7065600,
+        "audit.db-wal": 0,
+        "audit.db-shm": 0
+      },
+      "functionalErrors": []
+    }
+  ],
+  "disclaimer": "Single-machine, single-client-process measurements of a synthetic workload. No targets are implied; do not compare across machines or drives."
+}

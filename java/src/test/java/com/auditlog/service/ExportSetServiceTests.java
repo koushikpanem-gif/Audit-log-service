@@ -351,6 +351,31 @@ class ExportSetServiceTests {
     }
 
     @Test
+    void jobsBeyondTheActiveLimitAreRejectedAsBusyAndNothingIsStored() throws Exception {
+        bulkSeed(2);
+        // Executor that accepts but never runs jobs, so each stays "active".
+        List<Runnable> parked = new java.util.ArrayList<>();
+        ExportSetService service = service(Map.of(), parked::add);
+        for (int index = 0; index < ExportSetService.MAX_ACTIVE_JOBS; index++) {
+            assertEquals("RUNNING", service.create(all(), "auditor").get("status"));
+        }
+        long jobFiles = jobFileCount();
+
+        ExportSetException busy = assertThrows(ExportSetException.class, () -> service.create(all(), "auditor"));
+
+        assertEquals(Kind.BUSY, busy.kind());
+        assertEquals("EXPORT_SET_BUSY", busy.code());
+        assertEquals(jobFiles, jobFileCount(), "rejected request must not create a job");
+        assertEquals(ExportSetService.MAX_ACTIVE_JOBS, parked.size());
+    }
+
+    private long jobFileCount() throws Exception {
+        try (var files = Files.list(exportRoot.resolve("jobs"))) {
+            return files.count();
+        }
+    }
+
+    @Test
     void recordLargerThanChunkLimitFailsInsteadOfBeingSkipped() throws Exception {
         appendService.append(new AppendEventRequest("TEST_EVENT", "alice", "ACCOUNT", "acct-1",
                 Map.of("blob", "y".repeat(50_000)), null), "writer");

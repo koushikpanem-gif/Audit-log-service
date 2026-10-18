@@ -72,6 +72,14 @@ anchors. The engineer reviews the requirements, resolves the questions in
 | Q-04 | Benchmark append/query/verify/export and report workload, environment, throughput and p50/p95/p99 without invented targets. | Reproducible benchmark report contains workload/environment and measured values or a clearly reported blocker. |
 | Q-05 | Demo A/B/C in both services, pinned-key offline verification, and tampering; document prototype limits, setup, human review, AI decisions and live-defense rehearsal. | Recorded demo evidence, reproducible setup and engineer-reviewed final summary/attestation; no fabricated sign-off. |
 
+### Action 23 evidence for Q-04
+
+[`performance.md`](./performance.md) documents the benchmark method, a recorded
+Windows run of both services (`docs/benchmarks/2026-10-18-windows-run1.json`),
+single-writer and full-scan costs, and bounded failure simulation. Not
+evidenced: Linux/macOS runs, dedicated-host or networked runs, throughput at
+scale beyond ~4,200 records, and isolation of the serialised-commit ceiling.
+
 ### Action 22 evidence for Q-03 and SH-08
 
 Gates, thresholds, dated suppressions and blocked checks are recorded in

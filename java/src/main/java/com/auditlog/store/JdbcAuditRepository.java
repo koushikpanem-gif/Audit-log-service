@@ -17,6 +17,7 @@ public final class JdbcAuditRepository implements AuditRepository {
 
     public static final int SCHEMA_VERSION = 3;
     private static final String SCHEMA_RESOURCE = "/db/schema-v1.sql";
+    private static final int DEFAULT_BUSY_TIMEOUT_MILLIS = 30000;
     private static final String MIGRATION_V1_TO_V2_RESOURCE = "/db/migration-v1-to-v2.sql";
     private static final String MIGRATION_V2_TO_V3_RESOURCE = "/db/migration-v2-to-v3.sql";
     private final Path databasePath;
@@ -25,8 +26,19 @@ public final class JdbcAuditRepository implements AuditRepository {
     private final String schemaSql;
     private final String migrationV2Sql;
     private final String migrationV3Sql;
+    private final int busyTimeoutMillis;
+    // Test seam: a page cap makes SQLite raise SQLITE_FULL without filling a real disk.
+    private volatile long maxPageCount;
 
     public JdbcAuditRepository(Path databasePath, String ledgerId) throws SQLException {
+        this(databasePath, ledgerId, DEFAULT_BUSY_TIMEOUT_MILLIS);
+    }
+
+    public JdbcAuditRepository(Path databasePath, String ledgerId, int busyTimeoutMillis) throws SQLException {
+        if (busyTimeoutMillis <= 0) {
+            throw new IllegalArgumentException("busyTimeoutMillis must be positive");
+        }
+        this.busyTimeoutMillis = busyTimeoutMillis;
         this.databasePath = Objects.requireNonNull(databasePath, "databasePath")
                 .toAbsolutePath()
                 .normalize();
@@ -43,6 +55,14 @@ public final class JdbcAuditRepository implements AuditRepository {
 
     public Path databasePath() {
         return databasePath;
+    }
+
+    /** Caps database pages for connections opened afterwards; zero removes the cap. */
+    public void setMaxPageCount(long pages) {
+        if (pages < 0) {
+            throw new IllegalArgumentException("pages must not be negative");
+        }
+        this.maxPageCount = pages;
     }
 
     @Override
@@ -151,10 +171,14 @@ public final class JdbcAuditRepository implements AuditRepository {
         Connection connection = DriverManager.getConnection(jdbcUrl);
         boolean configured = false;
         try (Statement statement = connection.createStatement()) {
-            statement.execute("PRAGMA busy_timeout = 30000");
+            statement.execute("PRAGMA busy_timeout = " + busyTimeoutMillis);
             statement.execute("PRAGMA foreign_keys = ON");
             statement.execute("PRAGMA secure_delete = ON");
             statement.execute("PRAGMA synchronous = FULL");
+            long pageCap = maxPageCount;
+            if (pageCap > 0) {
+                statement.execute("PRAGMA max_page_count = " + pageCap);
+            }
             if (queryOnly) {
                 statement.execute("PRAGMA query_only = ON");
             }

@@ -27,3 +27,16 @@
   CPython 3.15, OWASP NVD scan, Docker) are reported as blocked, not passed.
 - Production fail-closed behavior is verified by real-process tests for both
   services rather than configuration-unit tests alone.
+
+## Update: Action 23 measurements (2026-10-18)
+
+- `scripts/benchmark.py` measures append/query/verify/export of both services
+  over HTTP and records environment, fsync probe, p50/p95/p99 and peak memory;
+  results and analysis are in `docs/performance.md`. There are no timing gates.
+- Failure simulation is bounded and deterministic: SQLite `max_page_count`
+  (disk full), latency injected inside the write transaction (slow I/O), a held
+  write lock with a short busy timeout, and the export-job limit (429).
+  Production defaults are unchanged; the page cap and short timeout are
+  test seams.
+- Disk-full surfaces as a generic 500 in both services. This was documented, not
+  changed; a distinct retryable status is an open engineering decision.

@@ -103,7 +103,7 @@ layer. The fix is a separate commit so the history stays honest.
   service with the same public test key and random salts, and are frozen. The independent
   Python verifier (`python/src/audit_log_service/verifier`, see `docs/python-verifier.md`)
   verifies them in `python/tests/test_verifier.py`.
-- Not proven: benchmarks (Action 23); multi-process behaviour of the verifier; the
+- Not proven: benchmarks beyond the single-machine run in performance.md; multi-process behaviour of the verifier; the
   Windows-skipped symlink test.
 
 ## Limits

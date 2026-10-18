@@ -35,7 +35,9 @@ def test_flags_private_keys_databases_and_tokens(
         "-----BEGIN PRIVATE KEY-----\n" + "A" * 64 + "\n-----END PRIVATE KEY-----\n"
     )
     (tmp_path / "audit.db").write_bytes(b"SQLite format 3")
-    (tmp_path / "notes.md").write_text('api_key = "abcdefghijklmnopqrstuvwxyz0123"')
+    # Built in pieces so this fixture does not itself match the scanner's pattern.
+    fake = "abcdefghijklmnopqrstuvwxyz0123"
+    (tmp_path / "notes.md").write_text('api_key = "' + fake + '"')
     _track(hygiene, monkeypatch, "leak.txt", "audit.db", "notes.md")
     findings = hygiene.scan()
     assert len(findings) == 3

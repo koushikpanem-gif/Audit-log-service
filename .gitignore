@@ -73,3 +73,6 @@ deploy/
 htmlcov/
 coverage.xml
 *.log
+
+# Scratch databases from scripts/benchmark.py
+benchmark-work/

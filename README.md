@@ -100,3 +100,7 @@ resolve support requirements before production use.
   (`java/target/audit-log-service-0.1.0-SNAPSHOT.jar`); `java/Dockerfile`,
   `python/Dockerfile` and `compose.yaml` define separate non-root images
   (unbuilt in the authoring environment).
+- Measured throughput/latency, single-writer and full-scan costs, and simulated
+  disk-full/slow-I/O/busy/backpressure behaviour: [`docs/performance.md`](./docs/performance.md)
+  (`scripts/benchmark.py`; results in `docs/benchmarks/`). Single-machine
+  measurements; no targets are claimed.
