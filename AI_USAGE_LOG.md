@@ -49,3 +49,18 @@ Actual AI changes and validation only; not engineer approval.
   pinned `rfc8785==0.1.4`. Python 3.11 was unavailable; CI not run.
 - **Git:** Authorized local commit message: `feat: implement canonical JSON
   and v1 hashes`. No push or engineer review claimed.
+
+## Action 04 — salted payload commitments
+
+- **Changed:** Added bounded iterative commitment/reveal and RFC 6901 subtree
+  expansion in both languages. Empty containers persist, null is committed,
+  salts/values remain outside the tree, and missing disclosures return sorted
+  `[REDACTED]` paths. Production uses secure random 32-byte salts; injectable
+  fixed salts are package-private/internal for tests. Shared vectors use
+  independently calculated SHA-256 values.
+- **Validation:** `mvn -B -f java\pom.xml verify` passed (20 tests). From
+  `python\`, venv Ruff check/format, `mypy src`, pytest (44 passed), and
+  `pip check` passed. Tests cover byte/depth/leaf boundaries, root and escaped
+  pointers, invalid indices/escapes, redaction, and repeated random writes.
+- **Git:** Authorized local commit message: `feat: implement salted payload
+  commitments`. No push or engineer review claimed.

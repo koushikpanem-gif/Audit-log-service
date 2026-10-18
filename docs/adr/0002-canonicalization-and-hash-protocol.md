@@ -13,6 +13,12 @@
   unsafe integer tokens, and over-limit inputs before recursive processing.
   Monetary precision is represented as strings. `occurredAt` is explicit null
   when absent; API timestamp maps to hashed `recordedAt`.
+- **Payload handling:** Commitment tree construction and reveal use iterative
+  traversal after 64-KiB byte, depth-10, and 500-scalar-leaf checks. Empty
+  containers remain empty; null is committed as a scalar. Stored leaf values
+  and salts are separate from the tree. Missing stored leaves reveal as
+  `[REDACTED]` and UTF-16-sorted redacted pointers. RFC 6901 escapes are strict;
+  array indices use canonical decimal notation. Fixed salt sources are test-only.
 - **Compatibility:** Hash version 1 is immutable. Any changed encoding or
   semantics requires a new version and compatibility plan. Both services must
   use independently produced golden vectors.
