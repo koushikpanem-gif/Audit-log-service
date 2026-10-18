@@ -21,9 +21,22 @@ cd python
 | `GET /audit/events`, `GET /audit/events/{eventId}` | reader, auditor, admin |
 | `GET /audit/checkpoints` | auditor, admin |
 | `POST /audit/admin/checkpoints` | admin (409 on empty ledger) |
+| `GET /audit/verify` | auditor, admin |
+| `GET /audit/export?actorId=&resourceId=&...` | auditor, admin |
+| `POST /audit/export-sets` (202 + Location) | auditor, admin |
+| `GET /audit/export-sets/{id}`, `.../manifest`, `.../chunks/{name}` | auditor, admin |
 
-Not built (Action 18 onward). They authenticate and check roles, then return **501 NOT_IMPLEMENTED**. They never fabricate success:
-`GET /audit/verify`, `GET /audit/export`, `POST /audit/admin/redactions`, `POST /audit/admin/archive`, `GET /compliance/account-access-report`.
+Not built (Action 19 onward). They authenticate and check roles, then return **501 NOT_IMPLEMENTED**. They never fabricate success:
+`POST /audit/admin/redactions`, `POST /audit/admin/archive`, `GET /compliance/account-access-report`.
+
+## Verification and exports (Action 18)
+
+- `GET /audit/verify` is a port of the Java verifier: ordered batches of 1000 in one snapshot, all 13 violation types, at most 100 diagnostics with exact `totalViolationCount`, fail-closed on malformed rows. Authorization events are indexed in a scratch SQLite database, not in memory. Redaction/archive authorization is evaluated, but those write APIs are not built yet.
+- `GET /audit/export` returns one signed `audit-export-bundle/v1`. It needs `actorId` or `resourceId`, and appends a `BUNDLE_EXPORTED` event plus checkpoint in the same write transaction. Over `AUDIT_EXPORT_MAX_RECORDS` / `AUDIT_EXPORT_MAX_BYTES` it returns 422 `EXPORT_LIMIT_EXCEEDED` and never truncates. A malformed stored row returns 500 `EXPORT_DATA_INVALID` and rolls back.
+- `POST /audit/export-sets` (same selection rules) freezes one snapshot head and writes immutable `chunk-NNNNNN.json` files plus a signed manifest under `AUDIT_EXPORT_DIR`. The job is READY only after atomic publication. Restart recovery re-derives job state from job files, staged manifests and the ledger. At most 16 active jobs (429 `EXPORT_SET_BUSY`). Downloads use fixed chunk names only, so there is no path traversal. Expired sets are removed lazily.
+- The manifest `selectionHead` is the head used for selection. `headCheckpoint` is the later post-`BUNDLE_EXPORTED` checkpoint.
+- Extra env vars: `AUDIT_EXPORT_MAX_RECORDS` (1000), `AUDIT_EXPORT_MAX_BYTES` (8 MiB), `AUDIT_EXPORT_CHUNK_MAX_RECORDS`, `AUDIT_EXPORT_CHUNK_MAX_BYTES`, `AUDIT_EXPORT_SET_MAX_RECORDS` (1,000,000), `AUDIT_EXPORT_SET_TTL_SECONDS` (60..2,592,000), `AUDIT_EXPORT_DIR`.
+- Archived records are excluded from exports, as are records appended after the snapshot.
 
 ## Storage
 

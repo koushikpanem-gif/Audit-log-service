@@ -198,6 +198,11 @@ class CheckpointSigner:
             signature=base64.b64encode(signature).decode("ascii"),
         )
 
+    def sign_message(self, message: dict[str, JsonValue], max_depth: int) -> str:
+        """Sign JCS(message); used for bundle and manifest bodies (standard Base64)."""
+        signature = self._private_key.sign(canonicalize(message, max_depth=max_depth))
+        return base64.b64encode(signature).decode("ascii")
+
     @staticmethod
     def verify_checkpoint(
         checkpoint: dict[str, object],

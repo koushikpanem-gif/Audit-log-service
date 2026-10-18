@@ -20,6 +20,8 @@ from audit_log_service.canonical_json import (
 )
 from audit_log_service.configuration import AuditConfiguration
 from audit_log_service.errors import ApiError, invalid
+from audit_log_service.export_bundle import ExportBundleService, parse_selection
+from audit_log_service.export_sets import ExportSetService
 from audit_log_service.ledger import (
     AppendService,
     Clock,
@@ -27,6 +29,7 @@ from audit_log_service.ledger import (
     parse_append_request,
     system_clock,
 )
+from audit_log_service.ledger_verifier import LedgerVerifier
 from audit_log_service.signing import CheckpointSigner
 from audit_log_service.store import (
     SqliteStore,
@@ -40,8 +43,6 @@ Handler = Callable[[Request], Awaitable[Response]]
 # Routes in the contract that later actions implement. They authenticate and
 # authorize like the real routes, then report that they are not built.
 _UNBUILT: tuple[tuple[str, str, frozenset[str], str], ...] = (
-    ("GET", "/audit/verify", auth.AUDITOR_ROLES, "Ledger verification"),
-    ("GET", "/audit/export", auth.AUDITOR_ROLES, "Signed export"),
     ("POST", "/audit/admin/redactions", auth.ADMIN_ROLES, "Redaction"),
     ("POST", "/audit/admin/archive", auth.ADMIN_ROLES, "Archiving"),
     (
@@ -76,6 +77,15 @@ class AuditApi:
         self.authenticator = authenticator
         self.append_service = AppendService(store, configuration, signer, clock)
         self.query_service = QueryService(store, authenticator.cursor_signing_key)
+        self.verifier = LedgerVerifier(
+            store, configuration.ledger_id, signer.public_key_base64, clock
+        )
+        self.bundle_service = ExportBundleService(
+            store, configuration, signer, self.append_service
+        )
+        self.export_sets = ExportSetService(
+            store, configuration, signer, self.append_service, clock
+        )
 
     def principal(self, request: Request, roles: frozenset[str]) -> Principal:
         principal = self.authenticator.authenticate(request.headers.get("x-api-key"))
@@ -186,6 +196,58 @@ class AuditApi:
         checkpoint = await run_in_threadpool(self.append_service.create_checkpoint)
         return JSONResponse(checkpoint, status_code=201)
 
+    async def verify(self, request: Request) -> Response:
+        self.principal(request, auth.AUDITOR_ROLES)
+        report = await run_in_threadpool(self.verifier.verify)
+        return JSONResponse(report)
+
+    async def export(self, request: Request) -> Response:
+        principal = self.principal(request, auth.AUDITOR_ROLES)
+        selection = parse_selection(_filters(request), require_actor_or_resource=True)
+        body = await run_in_threadpool(
+            self.bundle_service.export, selection, principal.name
+        )
+        return Response(body, media_type="application/json")
+
+    async def create_export_set(self, request: Request) -> Response:
+        principal = self.principal(request, auth.AUDITOR_ROLES)
+        selection = parse_selection(_filters(request), require_actor_or_resource=True)
+        descriptor = await run_in_threadpool(
+            self.export_sets.create, selection, principal.name
+        )
+        return JSONResponse(
+            descriptor,
+            status_code=202,
+            headers={"Location": f"/audit/export-sets/{descriptor['exportSetId']}"},
+        )
+
+    async def get_export_set(self, request: Request) -> Response:
+        self.principal(request, auth.AUDITOR_ROLES)
+        descriptor = await run_in_threadpool(
+            self.export_sets.describe, request.path_params["export_set_id"]
+        )
+        return JSONResponse(descriptor)
+
+    async def get_export_manifest(self, request: Request) -> Response:
+        self.principal(request, auth.AUDITOR_ROLES)
+
+        def read() -> bytes:
+            return self.export_sets.manifest_path(
+                request.path_params["export_set_id"]
+            ).read_bytes()
+
+        return Response(await run_in_threadpool(read), media_type="application/json")
+
+    async def get_export_chunk(self, request: Request) -> Response:
+        self.principal(request, auth.AUDITOR_ROLES)
+
+        def read() -> bytes:
+            return self.export_sets.chunk_path(
+                request.path_params["export_set_id"], request.path_params["name"]
+            ).read_bytes()
+
+        return Response(await run_in_threadpool(read), media_type="application/json")
+
     def unbuilt(self, roles: frozenset[str], feature: str) -> Handler:
         async def handler(request: Request) -> Response:
             self.principal(request, roles)
@@ -225,6 +287,12 @@ def _too_large() -> ApiError:
     return ApiError(
         413, "REQUEST_TOO_LARGE", "Request body exceeds the configured byte limit"
     )
+
+
+def _filters(request: Request) -> dict[str, str | None]:
+    params = request.query_params
+    names = ("actorId", "resourceType", "resourceId", "eventType", "from", "to")
+    return {name: params.get(name) for name in names}
 
 
 def _int_param(value: str | None, name: str) -> int | None:
@@ -290,6 +358,20 @@ def create_app(
         Route("/audit/events/{event_id}", api.get_event, methods=["GET"]),
         Route("/audit/checkpoints", api.list_checkpoints, methods=["GET"]),
         Route("/audit/admin/checkpoints", api.create_checkpoint, methods=["POST"]),
+        Route("/audit/verify", api.verify, methods=["GET"]),
+        Route("/audit/export", api.export, methods=["GET"]),
+        Route("/audit/export-sets", api.create_export_set, methods=["POST"]),
+        Route("/audit/export-sets/{export_set_id}", api.get_export_set),
+        Route(
+            "/audit/export-sets/{export_set_id}/manifest",
+            api.get_export_manifest,
+            methods=["GET"],
+        ),
+        Route(
+            "/audit/export-sets/{export_set_id}/chunks/{name}",
+            api.get_export_chunk,
+            methods=["GET"],
+        ),
     ]
     routes.extend(
         Route(path, api.unbuilt(roles, feature), methods=[method])
@@ -301,7 +383,9 @@ def create_app(
         StorageError: _storage_error,
         Exception: _unexpected,
     }
-    return Starlette(routes=routes, exception_handlers=handlers)
+    application = Starlette(routes=routes, exception_handlers=handlers)
+    application.state.api = api
+    return application
 
 
 def openapi_document() -> dict[str, Any]:
@@ -339,6 +423,28 @@ def openapi_document() -> dict[str, Any]:
         },
         "/audit/admin/checkpoints": {
             "post": operation("Create a checkpoint", "admin", 401, 403, 409, 503)
+        },
+        "/audit/verify": {
+            "get": operation("Verify the whole ledger", "auditor", 401, 403, 503)
+        },
+        "/audit/export": {
+            "get": operation("Signed v1 export bundle", "auditor", 401, 403, 422, 503)
+        },
+        "/audit/export-sets": {
+            "post": operation(
+                "Create a signed export set", "auditor", 401, 403, 422, 429, 503
+            )
+        },
+        "/audit/export-sets/{exportSetId}": {
+            "get": operation("Describe an export set", "auditor", 401, 403, 404)
+        },
+        "/audit/export-sets/{exportSetId}/manifest": {
+            "get": operation(
+                "Download the signed manifest", "auditor", 401, 403, 404, 409, 410
+            )
+        },
+        "/audit/export-sets/{exportSetId}/chunks/{name}": {
+            "get": operation("Download one chunk", "auditor", 401, 403, 404, 409, 410)
         },
     }
     for method, path, roles, feature in _UNBUILT:

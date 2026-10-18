@@ -368,3 +368,11 @@ Actual AI changes and validation only; not engineer approval.
 - **Validation**: in python/ I ran ruff check, ruff format --check and mypy src, all clean. pytest -q gave 221 passed and 1 skipped, covering real SQLite, threads, spawned processes, restart, rollback, snapshots and busy to 503. Java was untouched, so mvn verify was not run.
 - **Not done / blocked**: bandit and pip-audit not run. Verify, export, redaction, archive and report are not built in Python. No human sign-off.
 - **Git**: one local commit, hash reported in the hand-off.
+
+## Action 18: Python verification and complete exports
+
+- **Scope**: Python `GET /audit/verify` (bounded full-ledger verifier), `GET /audit/export` (small v1 bundle) and export-set job/download APIs (`POST /audit/export-sets`, descriptor, manifest, chunks). No Java changes. Redaction, archive and report remain 501 in Python.
+- **AI decisions**: Ported the Java verifier design (scratch-DB authorization index, 13 violation types, 100-diagnostic cap) as independent Python logic. Initially assumed export-set filters were optional; the offline verifiers (Java and Python) require actorId or resourceId for EXPORT purpose, so I changed creation to require them and the test caught it. Export-set jobs use durable job files with staging/ready trees and restart recovery. Hand-built system events in tests stand in for redaction/archive authorization until those APIs exist. Tests verify output with the independent offline verifier and a pinned key, not by comparing database bytes.
+- **Validation** (in `python/`): `ruff check .` passed; `ruff format --check .` passed; `mypy src` passed (23 files); `pytest -q` gave 291 passed, 1 skipped (new: 43 verifier tests, 29 export tests).
+- **Not done / blocked**: `bandit` and `pip-audit` are not installed in the venv and were not run. `mvn verify` was not run because Java is unchanged. No cross-language check beyond the existing Python offline verifier. No human review or sign-off yet.
+- **Git**: One local commit `feat: implement Python verification and complete exports`.

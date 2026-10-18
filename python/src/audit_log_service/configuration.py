@@ -34,6 +34,13 @@ class AuditConfiguration:
     signing_public_key: Path
     api_keys_file: Path | None
     db_path: Path = Path("audit-data/audit.db")
+    export_max_records: int = 1000
+    export_max_bytes: int = 8 * 1024 * 1024
+    export_dir: Path = Path("audit-data/exports")
+    export_chunk_max_records: int = 1000
+    export_chunk_max_bytes: int = 8 * 1024 * 1024
+    export_set_max_records: int = 1_000_000
+    export_set_ttl_seconds: int = 86_400
 
     @classmethod
     def from_environment(
@@ -78,6 +85,31 @@ class AuditConfiguration:
         _bounded("AUDIT_MAX_DEPTH", max_depth, 10)
         _bounded("AUDIT_MAX_LEAVES", max_leaves, 500)
 
+        export_max_records = _positive_int(env, "AUDIT_EXPORT_MAX_RECORDS", 1000)
+        export_max_bytes = _positive_int(env, "AUDIT_EXPORT_MAX_BYTES", 8 * 1024**2)
+        chunk_max_records = _positive_int(env, "AUDIT_EXPORT_CHUNK_MAX_RECORDS", 1000)
+        chunk_max_bytes = _positive_int(
+            env, "AUDIT_EXPORT_CHUNK_MAX_BYTES", 8 * 1024**2
+        )
+        set_max_records = _positive_int(env, "AUDIT_EXPORT_SET_MAX_RECORDS", 1_000_000)
+        set_ttl = _positive_int(env, "AUDIT_EXPORT_SET_TTL_SECONDS", 86_400)
+        _bounded("AUDIT_EXPORT_MAX_RECORDS", export_max_records, 100_000)
+        _bounded("AUDIT_EXPORT_MAX_BYTES", export_max_bytes, 64 * 1024**2)
+        _bounded("AUDIT_EXPORT_CHUNK_MAX_RECORDS", chunk_max_records, 100_000)
+        _bounded("AUDIT_EXPORT_CHUNK_MAX_BYTES", chunk_max_bytes, 64 * 1024**2)
+        _bounded("AUDIT_EXPORT_SET_MAX_RECORDS", set_max_records, 10_000_000)
+        if not 60 <= set_ttl <= 2_592_000:
+            raise ConfigurationError("AUDIT_EXPORT_SET_TTL_SECONDS is outside bounds")
+        db_path = Path(_get(env, "AUDIT_DB_PATH", "audit-data/audit.db"))
+        export_dir_value = env.get("AUDIT_EXPORT_DIR")
+        if export_dir_value is not None and not export_dir_value.strip():
+            raise ConfigurationError("AUDIT_EXPORT_DIR must be non-empty when set")
+        export_dir = (
+            Path(export_dir_value)
+            if export_dir_value is not None
+            else db_path.parent / "exports"
+        )
+
         api_keys_value = env.get("AUDIT_API_KEYS_FILE")
         api_keys_file = Path(api_keys_value) if api_keys_value else None
         if environment == "prod" and api_keys_file is None:
@@ -98,7 +130,14 @@ class AuditConfiguration:
                 _get(env, "AUDIT_SIGNING_PUBLIC_KEY", "audit-data/signing-public.b64")
             ),
             api_keys_file=api_keys_file,
-            db_path=Path(_get(env, "AUDIT_DB_PATH", "audit-data/audit.db")),
+            db_path=db_path,
+            export_max_records=export_max_records,
+            export_max_bytes=export_max_bytes,
+            export_dir=export_dir,
+            export_chunk_max_records=chunk_max_records,
+            export_chunk_max_bytes=chunk_max_bytes,
+            export_set_max_records=set_max_records,
+            export_set_ttl_seconds=set_ttl,
         )
 
     def load_signer(self) -> CheckpointSigner:

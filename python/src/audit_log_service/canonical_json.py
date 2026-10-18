@@ -8,6 +8,7 @@ import rfc8785
 
 MAX_INPUT_BYTES = 256 * 1024
 MAX_NESTING_DEPTH = 10
+MAX_DOCUMENT_DEPTH = 32
 MAX_SAFE_INTEGER = 9_007_199_254_740_991
 
 JsonScalar: TypeAlias = str | int | float | bool | None
@@ -59,8 +60,8 @@ def parse_json(
     return cast(JsonValue, value)
 
 
-def canonicalize(value: JsonValue) -> bytes:
-    _validate_value(value, max_depth=MAX_NESTING_DEPTH)
+def canonicalize(value: JsonValue, *, max_depth: int = MAX_NESTING_DEPTH) -> bytes:
+    _validate_value(value, max_depth=max_depth)
     try:
         return rfc8785.dumps(value)
     except (rfc8785.CanonicalizationError, RecursionError) as exc:

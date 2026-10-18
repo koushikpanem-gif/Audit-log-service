@@ -284,6 +284,37 @@ class AppendService:
             "chainHash": chain_digest,
         }
 
+    def append_system_event(
+        self,
+        connection: sqlite3.Connection,
+        event_type: str,
+        actor_id: str,
+        resource_type: str,
+        resource_id: str,
+        payload: dict[str, JsonValue],
+    ) -> dict[str, Any]:
+        """Append a service-generated event inside a caller-owned write transaction."""
+        request = AppendRequest(
+            event_type, actor_id, resource_type, resource_id, payload, None
+        )
+        return self._append_locked(connection, request, "system")
+
+    def store_checkpoint(
+        self,
+        connection: sqlite3.Connection,
+        seq: int,
+        chain_digest: str,
+        created_at: str,
+    ) -> dict[str, Any]:
+        return _insert_checkpoint(
+            connection,
+            self._signer,
+            self._configuration.ledger_id,
+            seq,
+            chain_digest,
+            created_at,
+        )
+
     def create_checkpoint(self) -> dict[str, Any]:
         """Sign the current head on demand; an empty ledger has nothing to sign."""
         with self._store.write_transaction() as connection:

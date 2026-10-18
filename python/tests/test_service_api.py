@@ -474,8 +474,6 @@ def test_public_endpoints_need_no_credentials(client: TestClient) -> None:
 @pytest.mark.parametrize(
     ("method", "path", "headers", "role_ok"),
     [
-        ("get", "/audit/verify", AUDITOR, True),
-        ("get", "/audit/export", AUDITOR, True),
         ("get", "/compliance/account-access-report", AUDITOR, True),
         ("post", "/audit/admin/redactions", ADMIN, True),
         ("post", "/audit/admin/archive", ADMIN, True),
