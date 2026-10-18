@@ -169,6 +169,15 @@ public class AuditController {
                 .body(appended);
     }
 
+    @PostMapping("/audit/admin/checkpoints")
+    @Operation(summary = "Sign the current head on demand (admin); empty ledger returns 409")
+    @SecurityRequirement(name = "apiKeyAuth")
+    public ResponseEntity<Map<String, Object>> createCheckpoint() throws SQLException {
+        Map<String, Object> checkpoint = appendService.createCheckpoint().orElseThrow(
+                () -> new ApiException(409, "CONFLICT", "An empty ledger cannot be checkpointed"));
+        return ResponseEntity.status(201).body(checkpoint);
+    }
+
     @PostMapping("/audit/admin/redactions")
     @Operation(summary = "Redact leaf values atomically (admin); cleanup may be PENDING")
     @SecurityRequirement(name = "apiKeyAuth")

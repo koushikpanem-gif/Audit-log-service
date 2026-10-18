@@ -61,7 +61,7 @@ Every route in the contract is now implemented in Python; the account-access rep
 
 - The query cursor is bound to the filters, the order and the snapshot head. Archive or redaction can change visibility across pages.
 - `/docs` is a plain HTML route table, not Swagger UI.
-- The Java controller has no `POST /audit/admin/checkpoints` even though the requirements list it. Python implements it. This is a Java gap to fix in a later action.
+- Java previously lacked `POST /audit/admin/checkpoints`; Action 21's HTTP validation found the unmapped route returning 500 and Java now implements it (201, 409 on an empty ledger, admin only).
 - Not yet run for Python: bandit and pip-audit.
 
 ## Compliance reporting (Action 20)

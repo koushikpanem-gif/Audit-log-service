@@ -176,6 +176,21 @@ public final class AppendEventService {
         return appendLocked(connection, request, "system", copy, null);
     }
 
+    /** Signs the current head on demand; empty when the ledger has no events to sign. */
+    public java.util.Optional<Map<String, Object>> createCheckpoint() throws SQLException {
+        return repository.writeTransaction(connection -> {
+            Head head = readHead(connection);
+            if (head.chainHash() == null) {
+                return java.util.Optional.<Map<String, Object>>empty();
+            }
+            Instant created = max(
+                    clock.instant().truncatedTo(ChronoUnit.MICROS),
+                    Instant.parse(head.recordedAt()));
+            return java.util.Optional.of(insertCheckpoint(
+                    connection, head.seq(), head.chainHash(), UTC_MICROS.format(created)));
+        });
+    }
+
     /** Signs and stores a checkpoint for an existing head inside a caller-owned write transaction. */
     public Map<String, Object> storeCheckpoint(
             Connection connection, long seq, String chainHash, String createdAt) throws SQLException {

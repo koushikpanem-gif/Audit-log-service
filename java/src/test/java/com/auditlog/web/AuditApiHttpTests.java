@@ -407,6 +407,22 @@ class AuditApiHttpTests {
         }
     }
 
+    @Test
+    void adminCreatesOnDemandCheckpointAndOtherRolesAreRefused() throws Exception {
+        append("CHECKPOINT_TEST", "actor-cp", "resource-cp", "{}");
+        mockMvc.perform(post("/audit/admin/checkpoints").header("X-API-Key", AUDITOR))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/audit/admin/checkpoints"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/audit/admin/checkpoints").header("X-API-Key", ADMIN))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.type").value("audit-checkpoint/v1"))
+                .andExpect(jsonPath("$.ledgerId").value("http-test-ledger"))
+                .andExpect(jsonPath("$.signature").isString());
+        mockMvc.perform(get("/audit/verify").header("X-API-Key", AUDITOR))
+                .andExpect(jsonPath("$.intact").value(true));
+    }
+
     private MvcResult append(String type, String actor, String resourceId, String payload)
             throws Exception {
         return mockMvc.perform(post("/audit/events")

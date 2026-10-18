@@ -32,7 +32,8 @@ audit_log_service = ["sql/*.sql"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src"]
+pythonpath = ["src", "tests"]
+markers = ["e2e: starts real service processes (Java jar and Python) over HTTP"]
 
 [tool.ruff]
 line-length = 88
