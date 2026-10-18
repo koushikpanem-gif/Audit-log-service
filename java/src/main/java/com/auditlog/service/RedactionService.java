@@ -234,13 +234,16 @@ public final class RedactionService {
     }
 
     private static Map<String, Object> parseCommitments(String json) throws SQLException {
+        if (json == null) {
+            throw new SQLException("Stored payload commitments are malformed");
+        }
         try {
             JsonNode node = CanonicalJson.parse(json.getBytes(java.nio.charset.StandardCharsets.UTF_8));
             if (!node.isObject()) {
                 throw new SQLException("Stored payload commitments are not a JSON object");
             }
             return objectValue(node);
-        } catch (IllegalArgumentException | NullPointerException exception) {
+        } catch (IllegalArgumentException exception) {
             throw new SQLException("Stored payload commitments are malformed", exception);
         }
     }

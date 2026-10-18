@@ -396,8 +396,9 @@ class QueryService:
                 last_seq = None
             else:
                 as_of, last_seq = state
+            # nosec B608 (2026-10-18): _EVENT_COLUMNS is a module constant; values bound.
             sql = (
-                f"SELECT {_EVENT_COLUMNS} FROM audit_events "
+                f"SELECT {_EVENT_COLUMNS} FROM audit_events "  # nosec B608
                 "WHERE archived = 0 AND seq <= ?"
             )
             params: list[object] = [as_of]
@@ -437,7 +438,7 @@ class QueryService:
             raise invalid("eventId must be non-empty and within 256 characters")
         with self._store.read_snapshot() as connection:
             row = connection.execute(
-                f"SELECT {_EVENT_COLUMNS} FROM audit_events "
+                f"SELECT {_EVENT_COLUMNS} FROM audit_events "  # nosec B608
                 "WHERE event_id = ? AND archived = 0",
                 (event_id,),
             ).fetchone()

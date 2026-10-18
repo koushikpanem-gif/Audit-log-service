@@ -377,8 +377,10 @@ class _Scan:
             )
 
     def _read_batch(self, where: str, params: tuple[Any, ...]) -> list[_Raw]:
+        # nosec B608 (2026-10-18): `where` is built from fixed fragments; values bound.
         rows = self._db.execute(
-            f"SELECT {_EVENT_COLUMNS} FROM audit_events {where} ORDER BY seq LIMIT ?",
+            f"SELECT {_EVENT_COLUMNS} FROM audit_events {where} "  # nosec B608
+            "ORDER BY seq LIMIT ?",
             (*params, self._batch),
         ).fetchall()
         return [_Raw(*row) for row in rows]

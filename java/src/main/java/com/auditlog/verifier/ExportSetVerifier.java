@@ -354,7 +354,7 @@ public final class ExportSetVerifier {
                         "A chunk exceeds the record limit of the set");
             }
             Path file = directory.resolve(name).normalize();
-            if (!file.getParent().equals(directory) || !Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)) {
+            if (!directory.equals(file.getParent()) || !Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)) {
                 run.fail(BundleDiagnosticCode.CHUNK_MISSING, null, pointer + "/name", "A listed chunk file is missing");
                 run.resetChain();
                 continue;
@@ -431,7 +431,7 @@ public final class ExportSetVerifier {
         int inspected = 0;
         try (DirectoryStream<Path> files = Files.newDirectoryStream(directory)) {
             for (Path file : files) {
-                String name = file.getFileName().toString();
+                String name = String.valueOf(file.getFileName());
                 if (++inspected > MAX_CHUNKS + 16) {
                     run.fail(BundleDiagnosticCode.RESOURCE_LIMIT_EXCEEDED, null, null,
                             "The directory holds too many files to inspect");

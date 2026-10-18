@@ -1,0 +1,7 @@
+# Allow-list build context: only what the Dockerfiles COPY.
+*
+!java/target/audit-log-service-0.1.0-SNAPSHOT.jar
+!python/pyproject.toml
+!python/src/
+python/src/**/__pycache__
+**/*.pyc

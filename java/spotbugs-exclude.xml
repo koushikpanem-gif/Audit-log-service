@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  SpotBugs exclusions. Each entry is dated and justified; none are used to
+  inflate results. Reviewed 2026-10-18 (Action 22).
+-->
+<FindBugsFilter>
+  <!--
+    2026-10-18: EI_EXPOSE_REP/EI_EXPOSE_REP2 report that constructor-injected
+    collaborators (repositories, services, clocks) and immutable-by-convention
+    records are stored by reference. Defensive copies of shared service
+    collaborators would break the design; value records are built from already
+    immutable copies. Re-review when records gain mutable collections.
+  -->
+  <Match>
+    <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+  </Match>
+  <!--
+    2026-10-18: afterCommitHook is a package-private fault-injection seam
+    assigned only by tests in the same package (crash-stage tests).
+  -->
+  <Match>
+    <Class name="com.auditlog.service.ExportSetService"/>
+    <Field name="afterCommitHook"/>
+    <Bug pattern="UWF_UNWRITTEN_FIELD"/>
+  </Match>
+</FindBugsFilter>

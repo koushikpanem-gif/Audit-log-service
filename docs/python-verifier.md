@@ -56,3 +56,10 @@ Python-signed fixtures regenerate with `python tests/fixtures/generate_verifier_
 (`--check` detects drift). The Python generator uses the service library and the verifier
 uses its own code, so agreement between them is an independent check of JCS and hashing,
 but the generator and service share an author and test key.
+
+## Minimal installation (Action 22)
+
+`pip install ./python` installs only `cryptography` (plus its CFFI dependency);
+the verifier never imports Starlette, Pydantic, Uvicorn or rfc8785 (CI job
+`verifier-minimal` asserts none are loaded and that a missing input exits 2).
+The web service requires `pip install "./python[service]"`.

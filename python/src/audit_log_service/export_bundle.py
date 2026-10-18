@@ -161,8 +161,9 @@ def iter_records(
     clause, params = selection.where(through_seq)
     after = 0
     while True:
+        # nosec B608 (2026-10-18): where-clause built from fixed fragments; values bound.
         rows = connection.execute(
-            f"SELECT * FROM audit_events WHERE {clause} AND seq > ? "
+            f"SELECT * FROM audit_events WHERE {clause} AND seq > ? "  # nosec B608
             "ORDER BY seq LIMIT ?",
             (*params, after, FETCH_BATCH),
         ).fetchall()

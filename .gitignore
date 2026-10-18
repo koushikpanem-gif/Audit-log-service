@@ -65,3 +65,11 @@ __pycache__/
 python/dist/
 python/build/
 *.egg-info/
+
+# Provisioned deployment secrets and coverage output
+deploy/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.log

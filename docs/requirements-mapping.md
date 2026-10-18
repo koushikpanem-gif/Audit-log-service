@@ -71,3 +71,11 @@ anchors. The engineer reviews the requirements, resolves the questions in
 | Q-03 | Run Java Maven verify, meaningful coverage enforcement after baseline, formatting/static analysis/dependency scan; Python ruff check/format, mypy, pytest, bandit and pip-audit. | CI/local logs record exact commands and actual outcomes; coverage is measured and enforced only after an honest baseline. |
 | Q-04 | Benchmark append/query/verify/export and report workload, environment, throughput and p50/p95/p99 without invented targets. | Reproducible benchmark report contains workload/environment and measured values or a clearly reported blocker. |
 | Q-05 | Demo A/B/C in both services, pinned-key offline verification, and tampering; document prototype limits, setup, human review, AI decisions and live-defense rehearsal. | Recorded demo evidence, reproducible setup and engineer-reviewed final summary/attestation; no fabricated sign-off. |
+
+### Action 22 evidence for Q-03 and SH-08
+
+Gates, thresholds, dated suppressions and blocked checks are recorded in
+[`quality-gates.md`](./quality-gates.md); setup, production fail-closed
+behavior, containers and the minimal verifier install are in
+[`setup.md`](./setup.md). Not yet evidenced: a green CI run (never executed
+here), built container images, local bandit and OWASP dependency-check runs.

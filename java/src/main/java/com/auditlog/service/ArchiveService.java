@@ -525,7 +525,7 @@ public final class ArchiveService {
                         archive_sha256, archive_bytes, directory_synced, archive_event_seq,
                         failure_code, cleanup_state, cleanup_detail
                     FROM archive_jobs %s ORDER BY id DESC LIMIT ?
-                    """.formatted(where))) {
+                    """.replace("%s", where))) {
                 int index = 1;
                 if (parameter != null) {
                     statement.setString(index++, parameter);
@@ -677,7 +677,7 @@ public final class ArchiveService {
         if (Files.isDirectory(directory)) {
             try (Stream<Path> entries = Files.list(directory)) {
                 for (Path entry : (Iterable<Path>) entries::iterator) {
-                    String name = entry.getFileName().toString();
+                    String name = String.valueOf(entry.getFileName());
                     if (known.contains(name)) {
                         continue;
                     }

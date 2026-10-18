@@ -353,7 +353,8 @@ public final class CheckpointSigner {
 
     private static void createRestrictedFile(Path path, byte[] contents) throws IOException {
         try {
-            if (Files.getFileAttributeView(path.getParent(), PosixFileAttributeView.class) != null) {
+            Path parent = path.toAbsolutePath().getParent();
+            if (parent != null && Files.getFileAttributeView(parent, PosixFileAttributeView.class) != null) {
                 Files.createFile(path, PosixFilePermissions.asFileAttribute(
                         Set.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE)));
             } else {
@@ -374,7 +375,7 @@ public final class CheckpointSigner {
     }
 
     private static void restrictWindowsAcl(Path path) throws IOException {
-        String username = System.getenv("USERNAME");
+        String username = System.getProperty("user.name");
         String domain = System.getenv("USERDOMAIN");
         if (username == null || username.isBlank()) {
             throw new IOException("Current Windows account is unavailable for key ACL");

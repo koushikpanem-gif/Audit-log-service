@@ -60,3 +60,24 @@ updates its supported environment.
 - [Maven Central JaCoCo plugin metadata](https://repo.maven.apache.org/maven2/org/jacoco/jacoco-maven-plugin/maven-metadata.xml)
 - [Python 3.11.17 release](https://www.python.org/downloads/release/python-31117/)
 - [Starlette 1.8.0 release](https://github.com/Kludex/starlette/releases/tag/1.8.0)
+
+## Action 22 additions (2026-10-18)
+
+Versions below were read from Maven Central `maven-metadata.xml`, PyPI, and the
+GitHub tags API / Docker Hub registry API on 2026-10-18; they are build/CI
+tooling, not runtime dependencies.
+
+| Tool | Exact version | Role |
+|---|---:|---|
+| maven-enforcer-plugin | 3.6.3 | Java/Maven version and duplicate-dependency rules |
+| spotless-maven-plugin | 3.10.4 | Java format check |
+| spotbugs-maven-plugin / SpotBugs | 4.10.5.0 / 4.10.5 | Java static analysis |
+| dependency-check-maven | 13.0.0 | Java dependency CVE scan (profile `security-scan`) |
+| bandit | 1.9.4 | Python security static analysis |
+| pip-audit | 2.10.1 | Python dependency vulnerability scan |
+| pytest-cov | 7.1.0 | Python coverage gate |
+| python:3.11-slim-bookworm / eclipse-temurin:21-jre-jammy | digest-pinned in Dockerfiles | Container base images |
+
+The Python base install now depends only on `cryptography` (the offline
+verifier). Starlette, Pydantic, Uvicorn and rfc8785 moved to the `service`
+extra; `dev` includes it.

@@ -299,8 +299,16 @@ def _create_private_file(path: Path, contents: bytes) -> None:
                 raise OSError("Current Windows account is unavailable for key ACL")
             domain = os.environ.get("USERDOMAIN")
             account = f"{domain}\\{username}" if domain else username
-            result = subprocess.run(
-                ["icacls", str(path), "/inheritance:r", "/grant:r", f"{account}:F"],
+            icacls = Path(os.environ.get("SystemRoot", "C:\\Windows")) / "System32"
+            # nosec B603 (2026-10-18): fixed executable, argument list, no shell.
+            result = subprocess.run(  # nosec B603
+                [
+                    str(icacls / "icacls.exe"),
+                    str(path),
+                    "/inheritance:r",
+                    "/grant:r",
+                    f"{account}:F",
+                ],
                 capture_output=True,
                 check=False,
                 text=True,

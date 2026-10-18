@@ -875,8 +875,8 @@ public final class LedgerVerifier {
         }
 
         private static final Comparator<Entry> ORDER = Comparator
-                .comparing((Entry entry) -> entry.violation().seq() == null
-                        ? Long.MAX_VALUE : entry.violation().seq())
+                .comparingLong((Entry entry) -> entry.violation().seq() == null
+                        ? Long.MAX_VALUE : entry.violation().seq().longValue())
                 .thenComparing(entry -> entry.violation().type())
                 .thenComparing(entry -> entry.violation().pointer() == null
                         ? "" : entry.violation().pointer())

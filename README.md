@@ -87,3 +87,16 @@ The current machine's installed Python may differ from 3.11; the CI workflow
 uses Python 3.11. The Spring Boot 3.5 line is retained to match the assignment,
 but its open-source support ended on 2026-06-30. See the dependency record and
 resolve support requirements before production use.
+
+## Quality gates, setup and packaging
+
+- Setup for Windows/Unix, production fail-closed rules, key provisioning
+  (`scripts/provision_keys.py`), containers and the minimal verifier install:
+  [`docs/setup.md`](./docs/setup.md).
+- CI gates, coverage thresholds, dated suppressions and blocked checks:
+  [`docs/quality-gates.md`](./docs/quality-gates.md). `scripts/check_hygiene.py`
+  scans tracked files for secrets and artifacts.
+- The Java build produces an executable Spring Boot jar
+  (`java/target/audit-log-service-0.1.0-SNAPSHOT.jar`); `java/Dockerfile`,
+  `python/Dockerfile` and `compose.yaml` define separate non-root images
+  (unbuilt in the authoring environment).

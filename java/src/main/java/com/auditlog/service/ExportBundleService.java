@@ -247,13 +247,18 @@ public final class ExportBundleService {
             parameters.add(limit);
         }
         PreparedStatement statement = connection.prepareStatement(sql.toString());
-        for (int index = 0; index < parameters.size(); index++) {
-            Object value = parameters.get(index);
-            if (value instanceof Long number) {
-                statement.setLong(index + 1, number);
-            } else {
-                statement.setString(index + 1, (String) value);
+        try {
+            for (int index = 0; index < parameters.size(); index++) {
+                Object value = parameters.get(index);
+                if (value instanceof Long number) {
+                    statement.setLong(index + 1, number);
+                } else {
+                    statement.setString(index + 1, (String) value);
+                }
             }
+        } catch (SQLException | RuntimeException exception) {
+            statement.close();
+            throw exception;
         }
         return statement;
     }

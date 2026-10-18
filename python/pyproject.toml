@@ -8,19 +8,26 @@ version = "0.1.0"
 description = "Python service scaffold for the tamper-evident audit log assignment"
 requires-python = ">=3.11"
 dependencies = [
-    "starlette==1.8.0",
-    "pydantic==2.14.1",
     "cryptography==50.0.2",
-    "uvicorn==0.54.0",
-    "rfc8785==0.1.4",
 ]
 
 [project.optional-dependencies]
+# Base install is the offline verifier only (cryptography); the service needs this extra.
+service = [
+    "starlette==1.8.0",
+    "pydantic==2.14.1",
+    "uvicorn==0.54.0",
+    "rfc8785==0.1.4",
+]
 dev = [
+    "audit-log-service[service]",
+    "bandit==1.9.4",
     "httpx2==2.13.1",
     "jsonschema==4.26.0",
     "mypy==2.4.0",
+    "pip-audit==2.10.1",
     "pytest==9.1.1",
+    "pytest-cov==7.1.0",
     "ruff==0.17.1",
 ]
 
@@ -34,6 +41,19 @@ audit_log_service = ["sql/*.sql"]
 testpaths = ["tests"]
 pythonpath = ["src", "tests"]
 markers = ["e2e: starts real service processes (Java jar and Python) over HTTP"]
+
+[tool.coverage.run]
+source = ["audit_log_service"]
+branch = true
+
+[tool.coverage.report]
+# Line+branch total measured at 87% on 2026-10-18 (non-e2e tests); no omit list.
+fail_under = 85
+show_missing = false
+
+[tool.bandit]
+# Security scan targets shipped code; test code intentionally uses asserts/subprocess.
+exclude_dirs = ["tests", ".venv"]
 
 [tool.ruff]
 line-length = 88

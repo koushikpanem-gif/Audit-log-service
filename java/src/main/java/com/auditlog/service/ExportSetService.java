@@ -485,7 +485,7 @@ public final class ExportSetService {
         List<String> known = new ArrayList<>();
         try (DirectoryStream<Path> files = Files.newDirectoryStream(jobsDirectory)) {
             for (Path file : files) {
-                String name = file.getFileName().toString();
+                String name = String.valueOf(file.getFileName());
                 if (name.endsWith(".tmp")) {
                     Files.deleteIfExists(file);
                 } else if (name.endsWith(".json") && SET_ID.matcher(name.substring(0, name.length() - 5)).matches()) {
@@ -515,7 +515,7 @@ public final class ExportSetService {
     private void removeOrphans(Path directory, List<String> known, String liveStatus) {
         try (DirectoryStream<Path> entries = Files.newDirectoryStream(directory)) {
             for (Path entry : entries) {
-                String name = entry.getFileName().toString();
+                String name = String.valueOf(entry.getFileName());
                 boolean live = false;
                 if (known.contains(name)) {
                     try {
@@ -687,7 +687,10 @@ public final class ExportSetService {
             Files.deleteIfExists(temporary);
             throw exception;
         }
-        syncDirectory(target.getParent());
+        Path parent = target.toAbsolutePath().getParent();
+        if (parent != null) {
+            syncDirectory(parent);
+        }
     }
 
     /** Best effort: directories cannot be opened for sync on every platform (notably Windows). */

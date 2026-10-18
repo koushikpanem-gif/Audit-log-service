@@ -16,3 +16,14 @@
   performance targets or passing results are invented. User-facing setup,
   prototype limits, AI traceability, human review, and live-defense rehearsal
   remain required completion evidence.
+
+## Update: Action 22 gates (2026-10-18)
+
+- Coverage thresholds were set from measured baselines (Java line/branch
+  0.84/0.68 vs 86.2%/70.7%; Python 85% vs 87%) with no coverage exclusions.
+- SpotBugs and Bandit findings were fixed where real; the remainder are
+  suppressed only with dated justification (see `docs/quality-gates.md`).
+- Tools needing network or compilers that were unavailable locally (bandit on
+  CPython 3.15, OWASP NVD scan, Docker) are reported as blocked, not passed.
+- Production fail-closed behavior is verified by real-process tests for both
+  services rather than configuration-unit tests alone.
