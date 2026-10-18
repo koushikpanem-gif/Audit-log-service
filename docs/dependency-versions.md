@@ -12,6 +12,7 @@ chosen Spring Boot line still receives community security updates.
 | Spring Boot parent | 3.5.16 | Latest stable `3.5.x` in Maven Central metadata on resolution date; Java 21 is within the line's supported runtime range. |
 | springdoc OpenAPI WebMVC UI | 2.8.17 | Latest stable `2.8.x` in Maven Central metadata; springdoc v2 is for Spring Boot 3.x. |
 | SQLite JDBC | 3.53.4.0 | Latest stable release in Maven Central metadata on resolution date. |
+| java-json-canonicalization | 1.1 | Apache-2.0 JCS implementation; used after strict Jackson validation. |
 | JaCoCo Maven plugin | 0.8.15 | Latest stable release in Maven Central metadata on resolution date. |
 | JUnit / Spring test libraries | Spring Boot managed | Resolved through the exact Spring Boot parent BOM to keep a compatible set. |
 
@@ -33,6 +34,7 @@ is 3.11.
 | [Starlette](https://pypi.org/project/starlette/) | 1.8.0 | ASGI application; upstream release requires Python >=3.11. |
 | [Pydantic](https://pypi.org/project/pydantic/) | 2.14.1 | Data/schema validation stack. |
 | [cryptography](https://pypi.org/project/cryptography/) | 50.0.2 | Cryptographic implementation dependency for later actions. |
+| [rfc8785](https://pypi.org/project/rfc8785/) | 0.1.4 | Pure-Python RFC 8785 canonical serializer. |
 | [Uvicorn](https://pypi.org/project/uvicorn/) | 0.54.0 | ASGI development/runtime server. |
 | [pytest](https://pypi.org/project/pytest/) | 9.1.1 | Tests. |
 | [HTTPX2](https://pypi.org/project/httpx2/) | 2.13.1 | Starlette 1.8 test client transport; replaces deprecated HTTPX integration. |

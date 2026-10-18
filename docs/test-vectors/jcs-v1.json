@@ -1,0 +1,46 @@
+{
+  "canonicalization": [
+    {
+      "name": "utf16-property-order",
+      "input": "{\"\\uE000\":2,\"\\uD800\\uDC00\":1}",
+      "expected": "{\"𐀀\":1,\"\":2}"
+    },
+    {
+      "name": "unicode-and-control-escaping",
+      "input": "{\"s\":\"€$\\u000f\\nA'B\\\"\\\\/\"}",
+      "expected": "{\"s\":\"€$\\u000f\\nA'B\\\"\\\\/\"}"
+    },
+    {
+      "name": "binary64-formatting",
+      "input": "[-0,0.000001,1e-7,1e20,1e21,333333333.33333329,5e-324,1.7976931348623157e308,9007199254740991]",
+      "expected": "[0,0.000001,1e-7,100000000000000000000,1e+21,333333333.3333333,5e-324,1.7976931348623157e+308,9007199254740991]"
+    }
+  ],
+  "hashes": {
+    "ledgerId": "ledger-α",
+    "genesisHash": "af731ef8d98dfe6fa3fe042504633bb28355b800910eed36666312c3f095c4b9",
+    "leaf": {
+      "saltHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "pointer": "/a~1b",
+      "value": "audit",
+      "hash": "51ab8280a7100b59d330de81ce59492fd6b461aaa27bee67d7988e957c09ee27"
+    },
+    "content": {
+      "v": 1,
+      "seq": 1,
+      "eventId": "evt-1",
+      "eventType": "TEST",
+      "actorId": "alice",
+      "resourceType": "ACCOUNT",
+      "resourceId": "acct-1",
+      "occurredAt": null,
+      "recordedAt": "2026-01-02T03:04:05.000000Z",
+      "source": "writer",
+      "payload": {
+        "ok": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "hash": "8bef8fe39aa341e15b00f94a0080be58018efe4b079eb4a36cfd5ef7fff54689"
+    },
+    "chainHash": "14e4632e4341bc17b0698de0bc4fdc8d699d5f2accbcb17c0cba484ceb9b669f"
+  }
+}

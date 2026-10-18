@@ -12,6 +12,7 @@ dependencies = [
     "pydantic==2.14.1",
     "cryptography==50.0.2",
     "uvicorn==0.54.0",
+    "rfc8785==0.1.4",
 ]
 
 [project.optional-dependencies]
