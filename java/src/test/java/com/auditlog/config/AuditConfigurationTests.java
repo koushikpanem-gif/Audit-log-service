@@ -45,6 +45,25 @@ class AuditConfigurationTests {
     }
 
     @Test
+    void cleanupSettingsHaveDefaultsAndAreBounded() {
+        AuditConfiguration defaults = AuditConfiguration.fromEnvironment(Map.of());
+        assertEquals(3, defaults.cleanupMaxAttempts());
+        assertEquals(1000, defaults.cleanupBusyTimeoutMillis());
+        AuditConfiguration custom = AuditConfiguration.fromEnvironment(Map.of(
+                "AUDIT_CLEANUP_MAX_ATTEMPTS", "10", "AUDIT_CLEANUP_BUSY_TIMEOUT_MS", "30000"));
+        assertEquals(10, custom.cleanupMaxAttempts());
+        assertEquals(30000, custom.cleanupBusyTimeoutMillis());
+        for (String value : new String[] {"0", "-1", "11", "x", ""}) {
+            assertThrows(IllegalArgumentException.class,
+                    () -> AuditConfiguration.fromEnvironment(Map.of("AUDIT_CLEANUP_MAX_ATTEMPTS", value)));
+        }
+        for (String value : new String[] {"0", "-5", "30001", "x"}) {
+            assertThrows(IllegalArgumentException.class,
+                    () -> AuditConfiguration.fromEnvironment(Map.of("AUDIT_CLEANUP_BUSY_TIMEOUT_MS", value)));
+        }
+    }
+
+    @Test
     void rejectsInvalidEnvironmentRetentionAndPositiveBounds(@TempDir Path tempDir) {
         assertThrows(IllegalArgumentException.class,
                 () -> AuditConfiguration.fromEnvironment(Map.of("AUDIT_ENV", "stage")));

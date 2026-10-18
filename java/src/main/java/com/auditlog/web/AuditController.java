@@ -3,6 +3,9 @@ package com.auditlog.web;
 import com.auditlog.core.crypto.CheckpointSigner;
 import com.auditlog.domain.AppendEventRequest;
 import com.auditlog.domain.BundleSelection;
+import com.auditlog.domain.RedactionRequest;
+import com.auditlog.service.RedactionCleanupService;
+import com.auditlog.service.RedactionService;
 import com.auditlog.service.AppendedEvent;
 import com.auditlog.service.AppendEventService;
 import com.auditlog.service.EventQueryService;
@@ -46,6 +49,8 @@ public class AuditController {
     private final LedgerVerifier verifier;
     private final ExportBundleService exportService;
     private final ExportSetService exportSetService;
+    private final RedactionService redactionService;
+    private final RedactionCleanupService cleanupService;
 
     public AuditController(
             AppendEventService appendService,
@@ -53,7 +58,11 @@ public class AuditController {
             CheckpointSigner signer,
             LedgerVerifier verifier,
             ExportBundleService exportService,
-            ExportSetService exportSetService) {
+            ExportSetService exportSetService,
+            RedactionService redactionService,
+            RedactionCleanupService cleanupService) {
+        this.redactionService = redactionService;
+        this.cleanupService = cleanupService;
         this.appendService = appendService;
         this.queryService = queryService;
         this.signer = signer;
@@ -147,6 +156,34 @@ public class AuditController {
         AppendedEvent appended = appendService.append(request, principal.name());
         return ResponseEntity.created(URI.create("/audit/events/" + appended.eventId()))
                 .body(appended);
+    }
+
+    @PostMapping("/audit/admin/redactions")
+    @Operation(summary = "Redact leaf values atomically (admin); cleanup may be PENDING")
+    @SecurityRequirement(name = "apiKeyAuth")
+    public ResponseEntity<RedactionService.RedactionResult> redact(
+            @RequestBody RedactionRequest request,
+            HttpServletRequest httpRequest) throws SQLException {
+        RedactionService.RedactionResult result = redactionService.redact(
+                request.eventId(), request.paths(), request.reason(), request.ticketId(),
+                principal(httpRequest).name());
+        return ResponseEntity.created(URI.create("/audit/events/" + result.redactionEventId()))
+                .body(result);
+    }
+
+    @GetMapping("/audit/admin/redaction-cleanups")
+    @Operation(summary = "Redaction cleanup job status (admin)")
+    @SecurityRequirement(name = "apiKeyAuth")
+    public Map<String, Object> cleanupStatus() throws SQLException {
+        return cleanupService.status(100);
+    }
+
+    @PostMapping("/audit/admin/redaction-cleanups/retry")
+    @Operation(summary = "Retry pending redaction cleanup (admin)")
+    @SecurityRequirement(name = "apiKeyAuth")
+    public Map<String, Object> retryCleanup() throws SQLException {
+        cleanupService.runPending();
+        return cleanupService.status(100);
     }
 
     @GetMapping("/audit/events")

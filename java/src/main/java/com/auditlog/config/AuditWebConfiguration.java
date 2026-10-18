@@ -5,6 +5,8 @@ import com.auditlog.service.AppendEventService;
 import com.auditlog.service.EventQueryService;
 import com.auditlog.service.ExportBundleService;
 import com.auditlog.service.ExportSetService;
+import com.auditlog.service.RedactionCleanupService;
+import com.auditlog.service.RedactionService;
 import com.auditlog.store.JdbcAuditRepository;
 import com.auditlog.verify.LedgerVerifier;
 import com.auditlog.web.ApiKeyAuthenticator;
@@ -46,6 +48,8 @@ public class AuditWebConfiguration {
             "AUDIT_EXPORT_CHUNK_MAX_BYTES",
             "AUDIT_EXPORT_SET_MAX_RECORDS",
             "AUDIT_EXPORT_SET_TTL_SECONDS",
+            "AUDIT_CLEANUP_MAX_ATTEMPTS",
+            "AUDIT_CLEANUP_BUSY_TIMEOUT_MS",
             "AUDIT_SIGNING_PRIVATE_KEY",
             "AUDIT_SIGNING_PUBLIC_KEY",
             "AUDIT_API_KEYS_FILE"
@@ -126,6 +130,23 @@ public class AuditWebConfiguration {
             return thread;
         });
         return new ExportSetService(repository, configuration, signer, appendService, auditClock, executor);
+    }
+
+    @Bean
+    public RedactionCleanupService redactionCleanupService(
+            JdbcAuditRepository repository, AuditConfiguration configuration, Clock auditClock) {
+        RedactionCleanupService service = new RedactionCleanupService(repository, configuration, auditClock);
+        service.recover();
+        return service;
+    }
+
+    @Bean
+    public RedactionService redactionService(
+            JdbcAuditRepository repository,
+            AuditConfiguration configuration,
+            AppendEventService appendService,
+            RedactionCleanupService cleanupService) {
+        return new RedactionService(repository, configuration, appendService, cleanupService);
     }
 
     @Bean

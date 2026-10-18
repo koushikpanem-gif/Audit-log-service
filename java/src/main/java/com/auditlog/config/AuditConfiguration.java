@@ -29,6 +29,8 @@ public record AuditConfiguration(
         int exportChunkMaxBytes,
         long exportSetMaxRecords,
         long exportSetTtlSeconds,
+        int cleanupMaxAttempts,
+        int cleanupBusyTimeoutMillis,
         Path signingPrivateKey,
         Path signingPublicKey,
         Path apiKeysFile) {
@@ -50,6 +52,12 @@ public record AuditConfiguration(
     public static final long DEFAULT_SET_TTL_SECONDS = 86_400L;
     public static final long MIN_SET_TTL_SECONDS = 60L;
     public static final long MAX_SET_TTL_SECONDS = 2_592_000L;
+
+    /** Redaction cleanup: finite checkpoint attempts, each bounded by a short busy timeout. */
+    public static final int DEFAULT_CLEANUP_MAX_ATTEMPTS = 3;
+    public static final int MAX_CLEANUP_MAX_ATTEMPTS = 10;
+    public static final int DEFAULT_CLEANUP_BUSY_TIMEOUT_MILLIS = 1000;
+    public static final int MAX_CLEANUP_BUSY_TIMEOUT_MILLIS = 30_000;
 
     private static final BigDecimal MAX_RETENTION_DAYS = BigDecimal.valueOf(500_000);
     private static final Pattern SHA256 = Pattern.compile("[0-9a-f]{64}");
@@ -113,6 +121,13 @@ public record AuditConfiguration(
             throw new IllegalArgumentException("AUDIT_EXPORT_SET_TTL_SECONDS is outside safe bounds");
         }
 
+        int cleanupMaxAttempts = positiveInt(
+                values, "AUDIT_CLEANUP_MAX_ATTEMPTS", DEFAULT_CLEANUP_MAX_ATTEMPTS);
+        int cleanupBusyTimeout = positiveInt(
+                values, "AUDIT_CLEANUP_BUSY_TIMEOUT_MS", DEFAULT_CLEANUP_BUSY_TIMEOUT_MILLIS);
+        bounded("AUDIT_CLEANUP_MAX_ATTEMPTS", cleanupMaxAttempts, MAX_CLEANUP_MAX_ATTEMPTS);
+        bounded("AUDIT_CLEANUP_BUSY_TIMEOUT_MS", cleanupBusyTimeout, MAX_CLEANUP_BUSY_TIMEOUT_MILLIS);
+
         String apiKeysValue = values.get("AUDIT_API_KEYS_FILE");
         if (apiKeysValue != null && apiKeysValue.isBlank()) {
             throw new IllegalArgumentException("AUDIT_API_KEYS_FILE must be non-empty when specified");
@@ -154,6 +169,8 @@ public record AuditConfiguration(
                 chunkMaxBytes,
                 setMaxRecords,
                 setTtl,
+                cleanupMaxAttempts,
+                cleanupBusyTimeout,
                 Path.of(get(values, "AUDIT_SIGNING_PRIVATE_KEY", "audit-data/signing-private.pem")),
                 Path.of(get(values, "AUDIT_SIGNING_PUBLIC_KEY", "audit-data/signing-public.b64")),
                 apiKeys);

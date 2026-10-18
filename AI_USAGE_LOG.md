@@ -279,3 +279,28 @@ Actual AI changes and validation only; not engineer approval.
   trips only share one implementation); no memory measurement beyond design and chunk-size limits;
   no benchmarks; `bandit`, `pip-audit`, `pip check` not re-run.
 - **Git:** committed locally as one commit; no engineer sign-off claimed.
+
+## Action 12: atomic redaction and cleanup recovery
+
+- **Scope:** Java redaction service, durable cleanup jobs with status/retry endpoints (admin role),
+  schema v2 migration (`redaction_cleanup`), cleanup config, admin role rule for `/audit/admin/**`.
+  Documented in `docs/redaction.md`.
+- **AI decisions:** Accepted: one write transaction appends `RECORD_REDACTED`, deletes leaves and
+  salts and inserts the PENDING job; WAL cleanup runs after commit and never undoes it; COMPLETE only
+  when the returned tuple has busy=0 and log=checkpointed. Assumptions for engineer review: a
+  shorter cleanup busy timeout than the 30000 ms standard, a cap of 495 expanded leaves per
+  redaction, a best-effort check that reason/ticketId does not repeat a redacted value, and a
+  start-up recovery attempt. Modified: `LedgerVerifier` required `schema_version = 1`, so every
+  v2 ledger looked malformed; the first test run caught it and I changed it to 2. A test expected
+  the plaintext in the WAL while a reader was held, but it was in the main database file; the
+  assertion now accepts either file.
+- **Validation:** `mvn -B -f java\pom.xml verify` passed (147 tests; 14 `RedactionServiceTests`
+  covering root/nested/subtree/overlap paths, no-op, archived/system/missing targets, rollback
+  by a forced trigger failure, forged and malformed authorizations, held-reader busy then
+  release/retry with plaintext absence in both files, restart recovery; plus `RedactionHttpTests`,
+  `SchemaMigrationTests` and config tests). From `python\`: `ruff check`, `ruff format --check`,
+  `mypy src` passed; `pytest` 96 passed (Python unchanged).
+- **Not done / blocked:** no Python redaction or cross-language vectors; no multi-process
+  redaction test; no physical-erasure claim; `bandit`, `pip-audit`, `pip check` not re-run;
+  JaCoCo thresholds ran as configured, none changed.
+- **Git:** committed locally as one commit; no engineer sign-off claimed.

@@ -15,6 +15,7 @@ public final class ApiSecurityInterceptor implements HandlerInterceptor {
 
     private static final Set<String> READ_ROLES = Set.of("reader", "auditor", "admin");
     private static final Set<String> AUDITOR_ROLES = Set.of("auditor", "admin");
+    private static final Set<String> ADMIN_ROLES = Set.of("admin");
     private static final Set<String> WRITE_ROLES = Set.of("writer", "admin");
 
     private final ApiKeyAuthenticator authenticator;
@@ -74,6 +75,9 @@ public final class ApiSecurityInterceptor implements HandlerInterceptor {
                 || path.equals("/audit/export"))
                 && method.equals("GET")) {
             return AUDITOR_ROLES;
+        }
+        if (path.startsWith("/audit/admin/")) {
+            return ADMIN_ROLES;
         }
         if (path.equals("/audit/export-sets") || path.startsWith("/audit/export-sets/")) {
             return AUDITOR_ROLES;

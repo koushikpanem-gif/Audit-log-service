@@ -262,7 +262,7 @@ public final class LedgerVerifier {
                 while (result.next()) {
                     rows++;
                     matches = ledgerId.equals(result.getObject(1))
-                            && Long.valueOf(1).equals(asLong(result.getObject(2)));
+                            && Long.valueOf(2).equals(asLong(result.getObject(2)));
                 }
             }
             if (rows != 1 || !matches) {

@@ -15,12 +15,14 @@ import java.util.Objects;
 
 public final class JdbcAuditRepository implements AuditRepository {
 
-    public static final int SCHEMA_VERSION = 1;
+    public static final int SCHEMA_VERSION = 2;
     private static final String SCHEMA_RESOURCE = "/db/schema-v1.sql";
+    private static final String MIGRATION_V1_TO_V2_RESOURCE = "/db/migration-v1-to-v2.sql";
     private final Path databasePath;
     private final String ledgerId;
     private final String jdbcUrl;
     private final String schemaSql;
+    private final String migrationV2Sql;
 
     public JdbcAuditRepository(Path databasePath, String ledgerId) throws SQLException {
         this.databasePath = Objects.requireNonNull(databasePath, "databasePath")
@@ -31,7 +33,8 @@ public final class JdbcAuditRepository implements AuditRepository {
         }
         this.ledgerId = ledgerId;
         this.jdbcUrl = "jdbc:sqlite:" + this.databasePath;
-        this.schemaSql = loadSchema();
+        this.schemaSql = loadResource(SCHEMA_RESOURCE);
+        this.migrationV2Sql = loadResource(MIGRATION_V1_TO_V2_RESOURCE);
         initialize();
     }
 
@@ -89,7 +92,14 @@ public final class JdbcAuditRepository implements AuditRepository {
                 statement.execute("BEGIN IMMEDIATE");
                 int version = readUserVersion(statement);
                 if (version == SCHEMA_VERSION) {
-                    verifyLedgerBinding(connection);
+                    verifyLedgerBinding(connection, SCHEMA_VERSION);
+                    statement.execute("COMMIT");
+                    return;
+                }
+                if (version == 1) {
+                    verifyLedgerBinding(connection, 1);
+                    migrateToV2(connection, statement);
+                    verifyLedgerBinding(connection, SCHEMA_VERSION);
                     statement.execute("COMMIT");
                     return;
                 }
@@ -103,13 +113,13 @@ public final class JdbcAuditRepository implements AuditRepository {
                     statement.execute(sql);
                 }
                 try (var insert = connection.prepareStatement(
-                        "INSERT INTO ledger_meta(singleton, ledger_id, schema_version) VALUES (1, ?, ?)")) {
+                        "INSERT INTO ledger_meta(singleton, ledger_id, schema_version) VALUES (1, ?, 1)")) {
                     insert.setString(1, ledgerId);
-                    insert.setInt(2, SCHEMA_VERSION);
                     insert.executeUpdate();
                 }
-                statement.execute("PRAGMA user_version = " + SCHEMA_VERSION);
-                verifyLedgerBinding(connection);
+                statement.execute("PRAGMA user_version = 1");
+                migrateToV2(connection, statement);
+                verifyLedgerBinding(connection, SCHEMA_VERSION);
                 statement.execute("COMMIT");
             } catch (SQLException | RuntimeException | Error failure) {
                 rollback(statement, failure);
@@ -158,9 +168,52 @@ public final class JdbcAuditRepository implements AuditRepository {
         }
     }
 
-    private void verifyLedgerBinding(Connection connection) throws SQLException {
+    /** Result row of {@code PRAGMA wal_checkpoint}: busy flag, WAL frames, checkpointed frames. */
+    public record WalCheckpoint(int busy, int logFrames, int checkpointedFrames) {
+
+        /** True only when SQLite reports no blocker and the whole WAL was checkpointed. */
+        public boolean complete() {
+            return busy == 0 && logFrames >= 0 && logFrames == checkpointedFrames;
+        }
+    }
+
+    /**
+     * Runs {@code PRAGMA wal_checkpoint(TRUNCATE)} on a fresh connection and returns the result
+     * tuple. SQLite reports a blocked checkpoint (for example a held reader) as busy=1 in the
+     * returned row, not as an exception, so the tuple must be inspected. The busy timeout is
+     * deliberately shorter than the normal 30 s so that cleanup retries are finite and bounded.
+     */
+    public WalCheckpoint checkpointWalTruncate(int busyTimeoutMillis) throws SQLException {
+        if (busyTimeoutMillis <= 0) {
+            throw new IllegalArgumentException("busyTimeoutMillis must be positive");
+        }
+        try (Connection connection = openConnection(false);
+                Statement statement = connection.createStatement()) {
+            statement.execute("PRAGMA busy_timeout = " + busyTimeoutMillis);
+            try (ResultSet result = statement.executeQuery("PRAGMA wal_checkpoint(TRUNCATE)")) {
+                if (!result.next()) {
+                    throw new SQLException("wal_checkpoint returned no result row");
+                }
+                return new WalCheckpoint(result.getInt(1), result.getInt(2), result.getInt(3));
+            }
+        } catch (SQLException exception) {
+            if (translateBusy(exception) instanceof StorageBusyException) {
+                return new WalCheckpoint(1, -1, -1);
+            }
+            throw exception;
+        }
+    }
+
+    private void migrateToV2(Connection connection, Statement statement) throws SQLException {
+        for (String sql : splitSchemaStatements(migrationV2Sql)) {
+            statement.execute(sql);
+        }
+        statement.execute("PRAGMA user_version = 2");
+    }
+
+    private void verifyLedgerBinding(Connection connection, int expectedVersion) throws SQLException {
         try (Statement versionStatement = connection.createStatement()) {
-            if (readUserVersion(versionStatement) != SCHEMA_VERSION) {
+            if (readUserVersion(versionStatement) != expectedVersion) {
                 throw new SQLException("SQLite user_version does not match schema version");
             }
         }
@@ -178,7 +231,7 @@ public final class JdbcAuditRepository implements AuditRepository {
             if (!ledgerId.equals(storedLedgerId)) {
                 throw new SQLException("SQLite database is bound to a different ledger ID");
             }
-            if (storedSchemaVersion != SCHEMA_VERSION) {
+            if (storedSchemaVersion != expectedVersion) {
                 throw new SQLException("SQLite ledger metadata schema version is unsupported");
             }
         }
@@ -202,10 +255,10 @@ public final class JdbcAuditRepository implements AuditRepository {
         }
     }
 
-    private static String loadSchema() throws SQLException {
-        try (InputStream input = JdbcAuditRepository.class.getResourceAsStream(SCHEMA_RESOURCE)) {
+    private static String loadResource(String resource) throws SQLException {
+        try (InputStream input = JdbcAuditRepository.class.getResourceAsStream(resource)) {
             if (input == null) {
-                throw new SQLException("SQLite schema resource is missing: " + SCHEMA_RESOURCE);
+                throw new SQLException("SQLite schema resource is missing: " + resource);
             }
             return new String(input.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
         } catch (IOException exception) {
@@ -213,7 +266,7 @@ public final class JdbcAuditRepository implements AuditRepository {
         }
     }
 
-    private static List<String> splitSchemaStatements(String schema) throws SQLException {
+    static List<String> splitSchemaStatements(String schema) throws SQLException {
         List<String> statements = new ArrayList<>();
         StringBuilder current = new StringBuilder();
         boolean inTrigger = false;
