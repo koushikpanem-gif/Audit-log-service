@@ -23,6 +23,6 @@ public record AppendEventRequest(
 
     @JsonAnySetter
     public void rejectUnknownInputField(String field, Object ignored) {
-        throw new IllegalArgumentException("Unknown event input field: " + field);
+        throw new IllegalArgumentException("Unknown event input field");
     }
 }

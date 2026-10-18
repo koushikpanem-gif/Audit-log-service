@@ -17,6 +17,7 @@ class AuditConfigurationTests {
     void loadsDefaultsAndValidProductionConfiguration(@TempDir Path tempDir) throws Exception {
         AuditConfiguration defaults = AuditConfiguration.fromEnvironment(Map.of());
         assertDoesNotThrow(defaults::validateApiKeys);
+        assertEquals(Path.of("audit-data/audit.db"), defaults.databasePath());
         assertEquals(500_000,
                 AuditConfiguration.fromEnvironment(Map.of("AUDIT_RETENTION_DAYS", "500000"))
                         .retentionDays());
@@ -68,6 +69,10 @@ class AuditConfigurationTests {
         }
         assertThrows(IllegalArgumentException.class,
                 () -> AuditConfiguration.fromEnvironment(Map.of("AUDIT_ENV", "prod")));
+        assertThrows(IllegalArgumentException.class,
+                () -> AuditConfiguration.fromEnvironment(Map.of("AUDIT_DB_PATH", " ")));
+        assertThrows(IllegalArgumentException.class,
+                () -> AuditConfiguration.fromEnvironment(Map.of("AUDIT_API_KEYS_FILE", "")));
         assertThrows(IllegalArgumentException.class,
                 () -> AuditConfiguration.fromEnvironment(Map.of(
                         "AUDIT_ENV", "prod",

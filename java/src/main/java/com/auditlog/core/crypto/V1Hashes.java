@@ -68,7 +68,10 @@ public final class V1Hashes {
 
     public static String contentHash(Map<String, ?> content) {
         validateContent(content);
-        return hashDomain("audit-log/content/v1", CanonicalJson.canonicalize(content));
+        return hashDomain(
+                "audit-log/content/v1",
+                CanonicalJson.canonicalize(
+                        content, CanonicalJson.MAX_NESTING_DEPTH + 2));
     }
 
     public static String chainHash(String previousHash, String contentHash) {

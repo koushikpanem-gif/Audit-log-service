@@ -15,6 +15,7 @@ import java.util.regex.Pattern;
 public record AuditConfiguration(
         String environment,
         String ledgerId,
+        Path databasePath,
         double retentionDays,
         int checkpointInterval,
         int requestLimitBytes,
@@ -72,13 +73,21 @@ public record AuditConfiguration(
         bounded("AUDIT_MAX_LEAVES", maxLeaves, 500);
 
         String apiKeysValue = values.get("AUDIT_API_KEYS_FILE");
-        Path apiKeys = apiKeysValue == null || apiKeysValue.isEmpty() ? null : Path.of(apiKeysValue);
+        if (apiKeysValue != null && apiKeysValue.isBlank()) {
+            throw new IllegalArgumentException("AUDIT_API_KEYS_FILE must be non-empty when specified");
+        }
+        Path apiKeys = apiKeysValue == null ? null : Path.of(apiKeysValue);
+        String databasePathValue = get(values, "AUDIT_DB_PATH", "audit-data/audit.db");
+        if (databasePathValue.isBlank()) {
+            throw new IllegalArgumentException("AUDIT_DB_PATH must be non-empty");
+        }
         if (environment.equals("prod") && apiKeys == null) {
             throw new IllegalArgumentException("Production requires AUDIT_API_KEYS_FILE");
         }
         return new AuditConfiguration(
                 environment,
                 ledgerId,
+                Path.of(databasePathValue),
                 retentionDays,
                 checkpointInterval,
                 requestLimitBytes,

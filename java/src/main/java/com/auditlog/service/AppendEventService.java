@@ -239,16 +239,17 @@ public final class AppendEventService {
         if ("system".equals(source)) {
             throw new IllegalArgumentException("System source is reserved for internal events");
         }
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("eventType", request.eventType());
-        body.put("actorId", request.actorId());
-        body.put("resourceType", request.resourceType());
-        body.put("resourceId", request.resourceId());
-        body.put("payload", request.payload());
+        Map<String, Object> envelopeFields = new LinkedHashMap<>();
+        envelopeFields.put("eventType", request.eventType());
+        envelopeFields.put("actorId", request.actorId());
+        envelopeFields.put("resourceType", request.resourceType());
+        envelopeFields.put("resourceId", request.resourceId());
         if (request.occurredAt() != null) {
-            body.put("occurredAt", request.occurredAt());
+            envelopeFields.put("occurredAt", request.occurredAt());
         }
-        if (CanonicalJson.canonicalize(body).length > configuration.requestLimitBytes()) {
+        int envelopeBytes = CanonicalJson.canonicalize(envelopeFields).length;
+        int payloadBytes = CanonicalJson.canonicalize(request.payload()).length;
+        if ((long) envelopeBytes + payloadBytes + 11 > configuration.requestLimitBytes()) {
             throw new IllegalArgumentException("Event request exceeds the configured byte limit");
         }
     }

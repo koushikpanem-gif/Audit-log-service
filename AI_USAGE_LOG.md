@@ -130,3 +130,36 @@ Actual AI changes and validation only; not engineer approval.
   (76 passed), and `pip check`. Cross-process stress, remote CI and live API
   integration were not run.
 - **Git:** No commit or engineer sign-off claimed yet.
+
+## Action 08 — secured append and query APIs
+
+- **Changed:** Connected Java runtime configuration to the SQLite repository,
+  configured signer, append service, and query service, including
+  `AUDIT_DB_PATH`. Added hash-only API-key file loading and constant-time
+  SHA-256 comparisons with writer/reader/auditor/admin role gates. Added fixed,
+  documented dev-only sample credentials; production still requires a valid
+  API-key file and signing key pair. Added strict byte-limited JSON parsing
+  (duplicate keys, malformed Unicode, unsafe numbers, depth), exact append
+  envelope rejection, and uniform error responses including safe 503 handling.
+  Exposed append, filtered query, single-event retrieval, checkpoint listing,
+  public key, health, OpenAPI, and docs routes. Queries use inclusive normalized
+  UTC time bounds, sequence keyset pagination, and one read snapshot for event
+  rows and payload leaves. Versioned HMAC cursors bind filters, ordering, and
+  the first-page head; the cursor signing key is derived from configured key
+  hashes, so key-set changes invalidate outstanding cursors. The API docs call
+  out that archive/redaction visibility can change across pages. Extended the
+  Java strict parser/hash serialization depth by the bounded API-envelope
+  overhead so configured payload depth remains usable; existing v1 hash
+  vectors remain unchanged.
+- **Validation:** Focused HTTP/config/JSON/hash and append regressions passed.
+  Final `mvn -B -f java\pom.xml verify` passed (50 tests), including HTTP
+  HTTP status/role enforcement (401/403/404/405/409/413/422), safe 503
+  exception-handler mapping, unknown and
+  duplicate JSON fields, payload depth/size, timestamp ties and inclusive
+  ranges, all filters, ascending/descending order, cursor misuse/tampering,
+  keyset snapshot behavior, checkpoint access, and concurrent HTTP appends.
+  Python source was unchanged; from `python\` the venv commands
+  `python -m ruff check .`, `python -m ruff format --check .`,
+  `python -m mypy src`, `python -m pytest` (76 passed), and
+  `python -m pip check` passed. Cross-process stress and remote CI were not run.
+- **Git:** No commit or engineer sign-off claimed yet.

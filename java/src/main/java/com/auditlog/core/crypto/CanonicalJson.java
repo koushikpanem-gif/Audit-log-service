@@ -43,13 +43,29 @@ public final class CanonicalJson {
     }
 
     public static JsonNode parse(byte[] json) {
+        return parse(json, MAX_NESTING_DEPTH);
+    }
+
+    public static JsonNode parse(byte[] json, int maxDepth) {
         if (json == null || json.length > MAX_INPUT_BYTES) {
             throw new IllegalArgumentException("JSON input is missing or exceeds the byte limit");
         }
-
+        if (maxDepth < 1 || maxDepth > MAX_NESTING_DEPTH + 2) {
+            throw new IllegalArgumentException("JSON nesting depth limit is outside supported bounds");
+        }
         String text = decodeUtf8(json);
-        checkDepth(text);
-        try (JsonParser parser = JSON_FACTORY.createParser(text)) {
+        checkDepth(text, maxDepth);
+        JsonFactory factory = maxDepth == MAX_NESTING_DEPTH
+                ? JSON_FACTORY
+                : JsonFactory.builder()
+                        .enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION)
+                        .streamReadConstraints(StreamReadConstraints.builder()
+                                .maxNestingDepth(maxDepth)
+                                .maxStringLength(MAX_INPUT_BYTES)
+                                .maxNumberLength(100)
+                                .build())
+                        .build();
+        try (JsonParser parser = factory.createParser(text)) {
             while (parser.nextToken() != null) {
                 JsonToken token = parser.currentToken();
                 if (token == JsonToken.VALUE_NUMBER_INT) {
@@ -64,11 +80,14 @@ public final class CanonicalJson {
                     }
                 }
             }
-            JsonNode root = MAPPER.readTree(text);
+            JsonNode root;
+            try (JsonParser treeParser = factory.createParser(text)) {
+                root = MAPPER.readTree(treeParser);
+            }
             if (root == null) {
                 throw new IllegalArgumentException("JSON input must contain one value");
             }
-            validateTree(root);
+            validateTree(root, maxDepth);
             return root;
         } catch (IOException | NumberFormatException exception) {
             throw new IllegalArgumentException("Invalid JSON input", exception);
@@ -76,7 +95,11 @@ public final class CanonicalJson {
     }
 
     public static byte[] canonicalize(byte[] json) {
-        parse(json);
+        return canonicalize(json, MAX_NESTING_DEPTH);
+    }
+
+    public static byte[] canonicalize(byte[] json, int maxDepth) {
+        parse(json, maxDepth);
         try {
             byte[] wrapped = new JsonCanonicalizer("[" + decodeUtf8(json) + "]").getEncodedUTF8();
             byte[] canonical = new byte[wrapped.length - 2];
@@ -95,9 +118,16 @@ public final class CanonicalJson {
     }
 
     public static byte[] canonicalize(Object value) {
-        validateValue(value);
+        return canonicalize(value, MAX_NESTING_DEPTH);
+    }
+
+    public static byte[] canonicalize(Object value, int maxDepth) {
+        if (maxDepth < 1 || maxDepth > MAX_NESTING_DEPTH + 2) {
+            throw new IllegalArgumentException("JSON nesting depth limit is outside supported bounds");
+        }
+        validateValue(value, maxDepth);
         try {
-            return canonicalize(MAPPER.writeValueAsBytes(value));
+            return canonicalize(MAPPER.writeValueAsBytes(value), maxDepth);
         } catch (IOException exception) {
             throw new IllegalArgumentException("Value is not JSON serializable", exception);
         }
@@ -130,7 +160,7 @@ public final class CanonicalJson {
         }
     }
 
-    private static void checkDepth(String text) {
+    private static void checkDepth(String text, int maxDepth) {
         int depth = 0;
         boolean inString = false;
         boolean escaped = false;
@@ -148,7 +178,7 @@ public final class CanonicalJson {
                 inString = true;
             } else if (character == '{' || character == '[') {
                 depth++;
-                if (depth > MAX_NESTING_DEPTH) {
+                if (depth > maxDepth) {
                     throw new IllegalArgumentException("JSON nesting depth exceeds the limit");
                 }
             } else if (character == '}' || character == ']') {
@@ -157,7 +187,7 @@ public final class CanonicalJson {
         }
     }
 
-    private static void validateTree(JsonNode root) {
+    private static void validateTree(JsonNode root, int maxDepth) {
         Deque<TreeFrame> pending = new ArrayDeque<>();
         pending.push(new TreeFrame(root, 0));
         while (!pending.isEmpty()) {
@@ -166,7 +196,7 @@ public final class CanonicalJson {
             if (node.isTextual()) {
                 validateString(node.textValue());
             } else if (node.isObject()) {
-                if (frame.depth() >= MAX_NESTING_DEPTH) {
+                if (frame.depth() >= maxDepth) {
                     throw new IllegalArgumentException("JSON nesting depth exceeds the limit");
                 }
                 node.properties().forEach(entry -> {
@@ -174,7 +204,7 @@ public final class CanonicalJson {
                     pending.push(new TreeFrame(entry.getValue(), frame.depth() + 1));
                 });
             } else if (node.isArray()) {
-                if (frame.depth() >= MAX_NESTING_DEPTH) {
+                if (frame.depth() >= maxDepth) {
                     throw new IllegalArgumentException("JSON nesting depth exceeds the limit");
                 }
                 node.elements().forEachRemaining(child ->
@@ -186,7 +216,7 @@ public final class CanonicalJson {
         }
     }
 
-    private static void validateValue(Object root) {
+    private static void validateValue(Object root, int maxDepth) {
         Deque<ValueFrame> pending = new ArrayDeque<>();
         IdentityHashMap<Object, Boolean> active = new IdentityHashMap<>();
         pending.push(new ValueFrame(root, 0, false));
@@ -216,7 +246,7 @@ public final class CanonicalJson {
             } else if (value instanceof Float) {
                 throw new IllegalArgumentException("Use binary64 Double values for JSON numbers");
             } else if (value instanceof Map<?, ?> object) {
-                enterContainer(value, frame.depth(), active, pending);
+                enterContainer(value, frame.depth(), active, pending, maxDepth);
                 for (Map.Entry<?, ?> entry : object.entrySet()) {
                     if (!(entry.getKey() instanceof String key)) {
                         throw new IllegalArgumentException("JSON object keys must be strings");
@@ -225,7 +255,7 @@ public final class CanonicalJson {
                     pending.push(new ValueFrame(entry.getValue(), frame.depth() + 1, false));
                 }
             } else if (value instanceof List<?> array) {
-                enterContainer(value, frame.depth(), active, pending);
+                enterContainer(value, frame.depth(), active, pending, maxDepth);
                 for (Object element : array) {
                     pending.push(new ValueFrame(element, frame.depth() + 1, false));
                 }
@@ -239,8 +269,9 @@ public final class CanonicalJson {
             Object value,
             int depth,
             IdentityHashMap<Object, Boolean> active,
-            Deque<ValueFrame> pending) {
-        if (depth >= MAX_NESTING_DEPTH) {
+            Deque<ValueFrame> pending,
+            int maxDepth) {
+        if (depth >= maxDepth) {
             throw new IllegalArgumentException("JSON nesting depth exceeds the limit");
         }
         if (active.put(value, Boolean.TRUE) != null) {
