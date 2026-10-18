@@ -183,6 +183,32 @@ public final class ExportBundleService {
 
     private List<Map<String, Object>> selectRecords(
             Connection connection, BundleSelection selection, long throughSeq) throws SQLException {
+        List<Map<String, Object>> records = new ArrayList<>();
+        // Incremental budget on record bytes alone; the exact check is the final one on the bundle.
+        long bytes = 0;
+        try (PreparedStatement statement =
+                        prepareSelection(connection, selection, throughSeq, (long) maxRecords + 1);
+                ResultSet result = statement.executeQuery()) {
+            while (result.next()) {
+                if (records.size() >= maxRecords) {
+                    throw tooLarge();
+                }
+                Map<String, Object> record = readRecord(connection, result);
+                bytes += CanonicalJson.canonicalize(
+                        record, CanonicalJson.MAX_DOCUMENT_DEPTH, Integer.MAX_VALUE).length + 1L;
+                if (bytes > maxBytes) {
+                    throw tooLarge();
+                }
+                records.add(record);
+            }
+        }
+        return records;
+    }
+
+    /** Shared by the small-bundle and export-set builders so both select identically. */
+    static PreparedStatement prepareSelection(
+            Connection connection, BundleSelection selection, long throughSeq, Long limit)
+            throws SQLException {
         StringBuilder sql = new StringBuilder(
                 "SELECT seq, event_id, event_type, actor_id, resource_type, resource_id, "
                         + "occurred_at, recorded_at, source, hash_version, payload_commitments, "
@@ -198,37 +224,21 @@ public final class ExportBundleService {
         filter(sql, parameters, "recorded_at <= ?", selection.to());
         filter(sql, parameters, "seq >= ?", selection.seqFrom());
         filter(sql, parameters, "seq <= ?", selection.seqTo());
-        sql.append(" ORDER BY seq LIMIT ?");
-        parameters.add((long) maxRecords + 1);
-
-        List<Map<String, Object>> records = new ArrayList<>();
-        // Incremental budget on record bytes alone; the exact check is the final one on the bundle.
-        long bytes = 0;
-        try (PreparedStatement statement = connection.prepareStatement(sql.toString())) {
-            for (int index = 0; index < parameters.size(); index++) {
-                Object value = parameters.get(index);
-                if (value instanceof Long number) {
-                    statement.setLong(index + 1, number);
-                } else {
-                    statement.setString(index + 1, (String) value);
-                }
-            }
-            try (ResultSet result = statement.executeQuery()) {
-                while (result.next()) {
-                    if (records.size() >= maxRecords) {
-                        throw tooLarge();
-                    }
-                    Map<String, Object> record = readRecord(connection, result);
-                    bytes += CanonicalJson.canonicalize(
-                            record, CanonicalJson.MAX_DOCUMENT_DEPTH, Integer.MAX_VALUE).length + 1L;
-                    if (bytes > maxBytes) {
-                        throw tooLarge();
-                    }
-                    records.add(record);
-                }
+        sql.append(" ORDER BY seq");
+        if (limit != null) {
+            sql.append(" LIMIT ?");
+            parameters.add(limit);
+        }
+        PreparedStatement statement = connection.prepareStatement(sql.toString());
+        for (int index = 0; index < parameters.size(); index++) {
+            Object value = parameters.get(index);
+            if (value instanceof Long number) {
+                statement.setLong(index + 1, number);
+            } else {
+                statement.setString(index + 1, (String) value);
             }
         }
-        return records;
+        return statement;
     }
 
     private static void filter(StringBuilder sql, List<Object> parameters, String clause, Object value) {
@@ -242,7 +252,7 @@ public final class ExportBundleService {
         return new ExportLimitExceededException(maxRecords, maxBytes);
     }
 
-    private Map<String, Object> readRecord(Connection connection, ResultSet row) throws SQLException {
+    static Map<String, Object> readRecord(Connection connection, ResultSet row) throws SQLException {
         long seq = row.getLong("seq");
         Map<String, Object> record = new LinkedHashMap<>();
         record.put("seq", seq);
@@ -304,7 +314,7 @@ public final class ExportBundleService {
 
         public ExportLimitExceededException(int maxRecords, int maxBytes) {
             super("Selection exceeds the configured small-export limits; narrow the selection "
-                    + "(complete export sets are not available in this build)");
+                    + "or create a chunked export set with POST /audit/export-sets");
             this.maxRecords = maxRecords;
             this.maxBytes = maxBytes;
         }

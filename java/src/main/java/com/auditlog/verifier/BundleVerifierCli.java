@@ -15,9 +15,11 @@ import java.nio.file.Path;
  * an unreadable file or bad arguments.
  *
  * <pre>
- * BundleVerifierCli --bundle bundle.json (--pinned-key-file key.b64 | --pinned-key BASE64
+ * BundleVerifierCli (--bundle bundle.json | --manifest set-dir/manifest.json)
+ *                    (--pinned-key-file key.b64 | --pinned-key BASE64
  *                    | --allow-self-asserted) [--max-bytes N] [--max-records N]
  * </pre>
+ * A manifest is verified together with the chunk files in its directory.
  */
 public final class BundleVerifierCli {
 
@@ -34,26 +36,31 @@ public final class BundleVerifierCli {
 
     public static int run(String[] args, PrintStream out, PrintStream err) {
         String bundlePath = null;
+        String manifestPath = null;
         String pinnedKey = null;
         String pinnedKeyFile = null;
         boolean selfAsserted = false;
         int maxBytes = BundleVerifier.DEFAULT_MAX_BYTES;
-        int maxRecords = BundleVerifier.DEFAULT_MAX_RECORDS;
+        Integer maxRecordsOption = null;
         try {
             for (int index = 0; index < args.length; index++) {
                 switch (args[index]) {
                     case "--bundle" -> bundlePath = value(args, ++index);
+                    case "--manifest" -> manifestPath = value(args, ++index);
                     case "--pinned-key" -> pinnedKey = value(args, ++index);
                     case "--pinned-key-file" -> pinnedKeyFile = value(args, ++index);
                     case "--allow-self-asserted" -> selfAsserted = true;
                     case "--max-bytes" -> maxBytes = Integer.parseInt(value(args, ++index));
-                    case "--max-records" -> maxRecords = Integer.parseInt(value(args, ++index));
+                    case "--max-records" -> maxRecordsOption = Integer.parseInt(value(args, ++index));
                     default -> throw new BundleVerifier.InputException("Unknown argument");
                 }
             }
-            if (bundlePath == null) {
-                throw new BundleVerifier.InputException("--bundle is required");
+            if ((bundlePath == null) == (manifestPath == null)) {
+                throw new BundleVerifier.InputException("Exactly one of --bundle and --manifest is required");
             }
+            int maxRecords = maxRecordsOption != null ? maxRecordsOption
+                    : manifestPath != null ? ExportSetVerifier.DEFAULT_MAX_RECORDS
+                    : BundleVerifier.DEFAULT_MAX_RECORDS;
             if (pinnedKey != null && pinnedKeyFile != null) {
                 throw new BundleVerifier.InputException("Use only one of --pinned-key and --pinned-key-file");
             }
@@ -66,8 +73,13 @@ public final class BundleVerifierCli {
             }
             BundleVerifier.Options options = new BundleVerifier.Options(
                     pinnedKey, selfAsserted, maxBytes, maxRecords);
-            byte[] input = read(Path.of(bundlePath), maxBytes);
-            BundleVerifier.Result result = BundleVerifier.verify(input, options);
+            BundleVerifier.Result result;
+            if (manifestPath != null) {
+                result = ExportSetVerifier.verify(Path.of(manifestPath), options);
+            } else {
+                byte[] input = read(Path.of(bundlePath), maxBytes);
+                result = BundleVerifier.verify(input, options);
+            }
             print(result, out);
             return result.valid() ? EXIT_VALID : EXIT_INVALID;
         } catch (BundleVerifier.InputException | NumberFormatException | IOException

@@ -1,6 +1,10 @@
 package com.auditlog.domain;
 
-/** The only diagnostic codes the offline bundle verifier may emit. */
+/**
+ * Offline verifier diagnostic codes. The small-bundle verifier emits only the first twenty
+ * (the normative small v1 set); the export-set verifier additionally emits the CHUNK_*,
+ * TOTAL_COUNT_MISMATCH and CHUNKS_DIGEST_MISMATCH codes.
+ */
 public enum BundleDiagnosticCode {
     BUNDLE_SCHEMA_INVALID,
     UNSUPPORTED_FORMAT,
@@ -21,5 +25,13 @@ public enum BundleDiagnosticCode {
     CHAIN_HASH_MISMATCH,
     CHAIN_LINK_BROKEN,
     CHECKPOINT_MISMATCH,
-    SELECTION_MISMATCH
+    SELECTION_MISMATCH,
+    CHUNK_MISSING,
+    CHUNK_DIGEST_MISMATCH,
+    CHUNK_ORDER_INVALID,
+    CHUNK_COUNT_MISMATCH,
+    CHUNK_NAME_UNSAFE,
+    CHUNK_UNEXPECTED,
+    TOTAL_COUNT_MISMATCH,
+    CHUNKS_DIGEST_MISMATCH
 }

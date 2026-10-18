@@ -253,3 +253,29 @@ Actual AI changes and validation only; not engineer approval.
   builder and re-signing with the same test key, so they are not independent of
   Java; no benchmark; `ruff format --check`, `pip check` not re-run.
 - **Git:** No commit or engineer sign-off claimed yet.
+
+## Action 11: bounded complete bulk exports
+
+- **Scope:** signed export-set manifest and chunk protocol, job service with staging, durable
+  READY and restart recovery, auditor-only create/status/manifest/chunk endpoints, Java set
+  verifier (`ExportSetVerifier`, CLI `--manifest`), 8 new diagnostic codes. Documented in
+  `docs/export-sets.md` and `docs/schemas/export-set-manifest.schema.json`. Small v1 bundles
+  are unchanged.
+- **AI decisions:** Accepted: selection snapshot first, then one write transaction for the
+  `BUNDLE_EXPORTED` event, checkpoint and manifest signature, so selection head and post-event head
+  are separate fields; jobs fail on any limit breach instead of truncating; after the ledger commit
+  recovery finishes publication from the ledger instead of deleting staged files. Assumptions for
+  engineer review: POST always returns a descriptor, an empty filter set exports the whole retained
+  ledger, TTL/limit defaults, lazy expiry, 16 active jobs per process, 202 with polling.
+  Modified: a job `createdAt` used nanosecond clock precision and was rejected by the microsecond
+  check; the HTTP test caught it and I truncated to micros. An HTTP test assumed a synchronous job
+  and was changed to poll.
+- **Validation:** `mvn -B -f java\pom.xml verify` passed (129 tests; 27 in `ExportSetServiceTests`,
+  covering 10,100 records, 60 KB values, concurrent appends, missing/altered/reordered/duplicated/
+  unlisted chunks, path traversal, restart recovery, expiry; plus `ExportSetHttpTests`). From
+  `python\`: `ruff check`, `ruff format --check`, `mypy src` passed; `pytest` 96 passed (Python
+  unchanged).
+- **Not done / blocked:** no Python verifier or independent cross-language set vectors (Java round
+  trips only share one implementation); no memory measurement beyond design and chunk-size limits;
+  no benchmarks; `bandit`, `pip-audit`, `pip check` not re-run.
+- **Git:** committed locally as one commit; no engineer sign-off claimed.

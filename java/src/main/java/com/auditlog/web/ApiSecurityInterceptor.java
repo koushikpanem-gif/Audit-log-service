@@ -75,6 +75,9 @@ public final class ApiSecurityInterceptor implements HandlerInterceptor {
                 && method.equals("GET")) {
             return AUDITOR_ROLES;
         }
+        if (path.equals("/audit/export-sets") || path.startsWith("/audit/export-sets/")) {
+            return AUDITOR_ROLES;
+        }
         return null;
     }
 

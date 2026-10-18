@@ -1,6 +1,7 @@
 package com.auditlog.web;
 
 import com.auditlog.service.ExportBundleService;
+import com.auditlog.service.ExportSetService;
 import com.auditlog.store.StorageBusyException;
 import java.sql.SQLException;
 import org.springframework.http.ResponseEntity;
@@ -28,6 +29,19 @@ public class ApiExceptionHandler {
                 java.util.List.of(
                         java.util.Map.of("limit", "AUDIT_EXPORT_MAX_RECORDS", "value", exception.maxRecords()),
                         java.util.Map.of("limit", "AUDIT_EXPORT_MAX_BYTES", "value", exception.maxBytes())))));
+    }
+
+    @ExceptionHandler(ExportSetService.ExportSetException.class)
+    public ResponseEntity<ApiErrorResponse> exportSet(ExportSetService.ExportSetException exception) {
+        int status = switch (exception.kind()) {
+            case INVALID -> 422;
+            case NOT_FOUND -> 404;
+            case NOT_READY -> 409;
+            case GONE -> 410;
+            case BUSY -> 429;
+            case FAILED -> 500;
+        };
+        return error(status, exception.code(), exception.getMessage());
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

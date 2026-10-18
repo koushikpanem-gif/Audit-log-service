@@ -111,6 +111,11 @@ public final class BundleVerifier {
     }
 
     public static Result verify(byte[] input, Options options) {
+        return prepare(options).execute(input);
+    }
+
+    /** Validates options and returns a fresh run; shared with the export-set verifier. */
+    static Run prepare(Options options) {
         if (options == null) {
             throw new InputException("Verifier options are required");
         }
@@ -127,38 +132,41 @@ public final class BundleVerifier {
                 throw new InputException("Pinned public key must be canonical Base64 of 32 raw bytes");
             }
         }
-        return new Run(options, pinnedRaw).execute(input);
+        return new Run(options, pinnedRaw);
     }
 
-    private static final class Run {
+    static final class Run {
         private final Options options;
         private final byte[] pinnedRaw;
-        private final List<BundleDiagnostic> diagnostics = new ArrayList<>();
-        private final List<String> notices = new ArrayList<>();
-        private long total;
-        private long undisclosed;
-        private String ledgerId;
-        private String bundleId;
-        private String keyId;
-        private long recordCount;
+        final List<BundleDiagnostic> diagnostics = new ArrayList<>();
+        final List<String> notices = new ArrayList<>();
+        long total;
+        long undisclosed;
+        String ledgerId;
+        String bundleId;
+        String keyId;
+        long recordCount;
+        private long previousSeq;
+        private String previousChain;
 
         Run(Options options, byte[] pinnedRaw) {
             this.options = options;
             this.pinnedRaw = pinnedRaw;
         }
 
-        private void fail(BundleDiagnosticCode code, Long seq, String pointer, String message) {
+        void fail(BundleDiagnosticCode code, Long seq, String pointer, String message) {
             total++;
             if (diagnostics.size() < MAX_DIAGNOSTICS) {
                 diagnostics.add(new BundleDiagnostic(code, seq, pointer, message));
             }
         }
 
-        private void schema(String pointer, String message) {
+        void schema(String pointer, String message) {
             fail(BundleDiagnosticCode.BUNDLE_SCHEMA_INVALID, null, pointer, message);
         }
 
-        Result execute(byte[] input) {
+        /** Records the standard caveats and enforces the pinned-key requirement; false stops the run. */
+        boolean begin() {
             boolean pinned = pinnedRaw != null;
             notices.add("A valid result does not prove the source ledger was intact at export time, "
                     + "that omitted matching records do not exist, or that undisclosed leaves were "
@@ -167,11 +175,27 @@ public final class BundleVerifier {
                 fail(BundleDiagnosticCode.TRUSTED_KEY_REQUIRED, null, null,
                         "A pinned public key obtained out of band is required; self-asserted "
                                 + "verification must be requested explicitly");
-                return result();
+                return false;
             }
             if (!pinned) {
                 notices.add("UNTRUSTED ORIGIN: the signer key was taken from the bundle itself, so only "
                         + "internal consistency was checked and the bundle's origin is NOT established");
+            }
+            return true;
+        }
+
+        Options options() {
+            return options;
+        }
+
+        void resetChain() {
+            previousSeq = 0;
+            previousChain = null;
+        }
+
+        Result execute(byte[] input) {
+            if (!begin()) {
+                return result();
             }
             if (input == null || input.length == 0) {
                 schema(null, "Bundle input is empty");
@@ -204,7 +228,7 @@ public final class BundleVerifier {
             return result();
         }
 
-        private Map<String, Object> parse(byte[] input) {
+        Map<String, Object> parse(byte[] input) {
             JsonNode root;
             try {
                 root = CanonicalJson.parse(input, CanonicalJson.MAX_DOCUMENT_DEPTH, options.maxBytes());
@@ -336,7 +360,7 @@ public final class BundleVerifier {
             return ok;
         }
 
-        private boolean checkpointShape(Object value) {
+        boolean checkpointShape(Object value) {
             if (!(value instanceof Map<?, ?> head) || !head.keySet().equals(CHECKPOINT_FIELDS)) {
                 schema("/headCheckpoint", "headCheckpoint must have exactly the v1 fields");
                 return false;
@@ -367,7 +391,7 @@ public final class BundleVerifier {
             return ok;
         }
 
-        private boolean signerShape(Object value) {
+        boolean signerShape(Object value) {
             if (!(value instanceof Map<?, ?> signer) || !signer.keySet().equals(Set.of("keyId", "publicKey"))) {
                 schema("/signer", "signer must contain exactly keyId and publicKey");
                 return false;
@@ -386,7 +410,7 @@ public final class BundleVerifier {
             return ok;
         }
 
-        private void checkTrustAndSignature(Map<String, Object> bundle) {
+        void checkTrustAndSignature(Map<String, Object> bundle) {
             Map<String, Object> signer = asMap(bundle.get("signer"));
             byte[] signerRaw = decodeRawKey((String) signer.get("publicKey"));
             boolean keyUsable = true;
@@ -421,14 +445,14 @@ public final class BundleVerifier {
 
         private byte[] effectiveKey;
 
-        private void checkGenesis(Map<String, Object> bundle) {
+        void checkGenesis(Map<String, Object> bundle) {
             if (!V1Hashes.genesisHash(ledgerId).equals(bundle.get("genesisHash"))) {
                 fail(BundleDiagnosticCode.GENESIS_MISMATCH, null, "/genesisHash",
                         "genesisHash does not match the ledgerId");
             }
         }
 
-        private void checkCheckpoint(Map<String, Object> bundle, Map<String, Object> head) {
+        void checkCheckpoint(Map<String, Object> bundle, Map<String, Object> head) {
             if (!head.get("keyId").equals(keyId)) {
                 fail(BundleDiagnosticCode.KEY_ID_MISMATCH, null, "/headCheckpoint/keyId",
                         "headCheckpoint.keyId differs from signer.keyId");
@@ -485,10 +509,20 @@ public final class BundleVerifier {
         private void checkRecords(
                 List<?> records, BundleSelection selection, long throughSeq, long headSeq,
                 String headHash) {
-            long previousSeq = 0;
-            String previousChain = null;
+            previousSeq = 0;
+            previousChain = null;
+            checkRecordChunk(records, "/records/", selection, throughSeq, headSeq, headHash);
+        }
+
+        /**
+         * Checks one run of records; ordering and adjacent-link state carry across calls so export
+         * set chunks are verified as one continuous sequence.
+         */
+        void checkRecordChunk(
+                List<?> records, String pointerPrefix, BundleSelection selection, long throughSeq,
+                long headSeq, String headHash) {
             for (int index = 0; index < records.size(); index++) {
-                String pointer = "/records/" + index;
+                String pointer = pointerPrefix + index;
                 Map<String, Object> record = recordShape(records.get(index), pointer);
                 if (record == null) {
                     previousSeq = 0;
@@ -708,7 +742,7 @@ public final class BundleVerifier {
             return true;
         }
 
-        private Result result() {
+        Result result() {
             Status status;
             if (total > 0) {
                 status = Status.INVALID;
@@ -750,7 +784,7 @@ public final class BundleVerifier {
         return false;
     }
 
-    private static byte[] decodeRawKey(String base64) {
+    static byte[] decodeRawKey(String base64) {
         try {
             byte[] raw = Base64.getDecoder().decode(base64);
             if (raw.length != 32 || !Base64.getEncoder().encodeToString(raw).equals(base64)) {
@@ -771,20 +805,20 @@ public final class BundleVerifier {
         }
     }
 
-    private static boolean isHash(Object value) {
+    static boolean isHash(Object value) {
         return value instanceof String text && HASH.matcher(text).matches();
     }
 
-    private static String text(Object value) {
+    static String text(Object value) {
         return value instanceof String text ? text : null;
     }
 
     @SuppressWarnings("unchecked")
-    private static Map<String, Object> asMap(Object value) {
+    static Map<String, Object> asMap(Object value) {
         return (Map<String, Object>) value;
     }
 
-    private static Object toObject(JsonNode node) {
+    static Object toObject(JsonNode node) {
         if (node.isObject()) {
             Map<String, Object> map = new LinkedHashMap<>();
             node.properties().forEach(entry -> map.put(entry.getKey(), toObject(entry.getValue())));
@@ -810,7 +844,7 @@ public final class BundleVerifier {
         return node.doubleValue();
     }
 
-    private static String sha256Hex(byte[] value) {
+    static String sha256Hex(byte[] value) {
         try {
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(value));
         } catch (NoSuchAlgorithmException exception) {

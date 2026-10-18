@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "export-set-manifest.schema.json",
+  "title": "audit-export-set-manifest/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "exportSetId", "purpose", "ledgerId", "hashAlgorithm", "hashVersion", "genesisHash",
+    "signatureAlgorithm", "createdAt", "expiresAt", "exportedBy", "selection", "completeness", "selectionHead",
+    "headCheckpoint", "totalRecords", "chunkCount", "chunkLimits", "chunks", "chunksDigest", "exclusions",
+    "signer", "signature"],
+  "properties": {
+    "format": {"const": "audit-export-set-manifest/v1"},
+    "exportSetId": {"type": "string"},
+    "purpose": {"const": "EXPORT"},
+    "ledgerId": {"type": "string"},
+    "hashAlgorithm": {"const": "SHA-256"},
+    "hashVersion": {"const": 1},
+    "genesisHash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "signatureAlgorithm": {"const": "Ed25519"},
+    "createdAt": {"type": "string"},
+    "expiresAt": {"type": "string"},
+    "exportedBy": {"type": "string"},
+    "selection": {"$ref": "selection.schema.json"},
+    "completeness": {"$ref": "completeness.schema.json"},
+    "selectionHead": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["seq", "chainHash"],
+      "properties": {"seq": {"type": "integer", "minimum": 0}, "chainHash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+    },
+    "headCheckpoint": {"$ref": "checkpoint.schema.json"},
+    "totalRecords": {"type": "integer", "minimum": 0},
+    "chunkCount": {"type": "integer", "minimum": 0, "maximum": 100000},
+    "chunkLimits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maxRecords", "maxBytes"],
+      "properties": {"maxRecords": {"type": "integer", "minimum": 1}, "maxBytes": {"type": "integer", "minimum": 1}}
+    },
+    "chunks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["index", "name", "recordCount", "firstSeq", "lastSeq", "bytes", "sha256"],
+        "properties": {
+          "index": {"type": "integer", "minimum": 0},
+          "name": {"type": "string", "pattern": "^chunk-[0-9]{6}\\.json$"},
+          "recordCount": {"type": "integer", "minimum": 1},
+          "firstSeq": {"type": "integer", "minimum": 1},
+          "lastSeq": {"type": "integer", "minimum": 1},
+          "bytes": {"type": "integer", "minimum": 1},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    },
+    "chunksDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "exclusions": {"type": "object"},
+    "signer": {"type": "object", "required": ["keyId", "publicKey"]},
+    "signature": {"type": "string"}
+  }
+}

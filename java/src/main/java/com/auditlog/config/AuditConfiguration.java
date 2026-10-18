@@ -24,6 +24,11 @@ public record AuditConfiguration(
         int maxLeaves,
         int exportMaxRecords,
         int exportMaxBytes,
+        Path exportDirectory,
+        int exportChunkMaxRecords,
+        int exportChunkMaxBytes,
+        long exportSetMaxRecords,
+        long exportSetTtlSeconds,
         Path signingPrivateKey,
         Path signingPublicKey,
         Path apiKeysFile) {
@@ -34,6 +39,17 @@ public record AuditConfiguration(
     /** Implementation-safe ceilings so the default offline verifier input cap can read a bundle. */
     public static final int MAX_EXPORT_RECORDS = 100_000;
     public static final int MAX_EXPORT_BYTES = 64 * 1024 * 1024;
+
+    /** Export-set (bulk) policy defaults; sets are chunked so no single artifact is unbounded. */
+    public static final int DEFAULT_CHUNK_MAX_RECORDS = 1000;
+    public static final int DEFAULT_CHUNK_MAX_BYTES = 8 * 1024 * 1024;
+    public static final int MAX_CHUNK_MAX_RECORDS = 100_000;
+    public static final int MAX_CHUNK_MAX_BYTES = 64 * 1024 * 1024;
+    public static final long DEFAULT_SET_MAX_RECORDS = 1_000_000L;
+    public static final long MAX_SET_MAX_RECORDS = 10_000_000L;
+    public static final long DEFAULT_SET_TTL_SECONDS = 86_400L;
+    public static final long MIN_SET_TTL_SECONDS = 60L;
+    public static final long MAX_SET_TTL_SECONDS = 2_592_000L;
 
     private static final BigDecimal MAX_RETENTION_DAYS = BigDecimal.valueOf(500_000);
     private static final Pattern SHA256 = Pattern.compile("[0-9a-f]{64}");
@@ -84,6 +100,18 @@ public record AuditConfiguration(
         int exportMaxBytes = positiveInt(values, "AUDIT_EXPORT_MAX_BYTES", DEFAULT_EXPORT_MAX_BYTES);
         bounded("AUDIT_EXPORT_MAX_RECORDS", exportMaxRecords, MAX_EXPORT_RECORDS);
         bounded("AUDIT_EXPORT_MAX_BYTES", exportMaxBytes, MAX_EXPORT_BYTES);
+        int chunkMaxRecords = positiveInt(values, "AUDIT_EXPORT_CHUNK_MAX_RECORDS", DEFAULT_CHUNK_MAX_RECORDS);
+        int chunkMaxBytes = positiveInt(values, "AUDIT_EXPORT_CHUNK_MAX_BYTES", DEFAULT_CHUNK_MAX_BYTES);
+        bounded("AUDIT_EXPORT_CHUNK_MAX_RECORDS", chunkMaxRecords, MAX_CHUNK_MAX_RECORDS);
+        bounded("AUDIT_EXPORT_CHUNK_MAX_BYTES", chunkMaxBytes, MAX_CHUNK_MAX_BYTES);
+        long setMaxRecords = positiveLong(values, "AUDIT_EXPORT_SET_MAX_RECORDS", DEFAULT_SET_MAX_RECORDS);
+        long setTtl = positiveLong(values, "AUDIT_EXPORT_SET_TTL_SECONDS", DEFAULT_SET_TTL_SECONDS);
+        if (setMaxRecords > MAX_SET_MAX_RECORDS) {
+            throw new IllegalArgumentException("AUDIT_EXPORT_SET_MAX_RECORDS exceeds its supported maximum");
+        }
+        if (setTtl < MIN_SET_TTL_SECONDS || setTtl > MAX_SET_TTL_SECONDS) {
+            throw new IllegalArgumentException("AUDIT_EXPORT_SET_TTL_SECONDS is outside safe bounds");
+        }
 
         String apiKeysValue = values.get("AUDIT_API_KEYS_FILE");
         if (apiKeysValue != null && apiKeysValue.isBlank()) {
@@ -97,10 +125,22 @@ public record AuditConfiguration(
         if (environment.equals("prod") && apiKeys == null) {
             throw new IllegalArgumentException("Production requires AUDIT_API_KEYS_FILE");
         }
+        String exportDirValue = values.get("AUDIT_EXPORT_DIR");
+        if (exportDirValue != null && exportDirValue.isBlank()) {
+            throw new IllegalArgumentException("AUDIT_EXPORT_DIR must be non-empty when specified");
+        }
+        Path databasePath = Path.of(databasePathValue);
+        Path exportDirectory;
+        if (exportDirValue != null) {
+            exportDirectory = Path.of(exportDirValue);
+        } else {
+            Path parent = databasePath.toAbsolutePath().getParent();
+            exportDirectory = (parent == null ? Path.of("") : parent).resolve("exports");
+        }
         return new AuditConfiguration(
                 environment,
                 ledgerId,
-                Path.of(databasePathValue),
+                databasePath,
                 retentionDays,
                 checkpointInterval,
                 requestLimitBytes,
@@ -109,6 +149,11 @@ public record AuditConfiguration(
                 maxLeaves,
                 exportMaxRecords,
                 exportMaxBytes,
+                exportDirectory,
+                chunkMaxRecords,
+                chunkMaxBytes,
+                setMaxRecords,
+                setTtl,
                 Path.of(get(values, "AUDIT_SIGNING_PRIVATE_KEY", "audit-data/signing-private.pem")),
                 Path.of(get(values, "AUDIT_SIGNING_PUBLIC_KEY", "audit-data/signing-public.b64")),
                 apiKeys);
@@ -176,6 +221,19 @@ public record AuditConfiguration(
         String raw = get(values, name, Integer.toString(fallback));
         try {
             int result = Integer.parseInt(raw);
+            if (result <= 0) {
+                throw new IllegalArgumentException(name + " must be a positive integer");
+            }
+            return result;
+        } catch (NumberFormatException exception) {
+            throw new IllegalArgumentException(name + " must be a positive integer", exception);
+        }
+    }
+
+    private static long positiveLong(Map<String, String> values, String name, long fallback) {
+        String raw = get(values, name, Long.toString(fallback));
+        try {
+            long result = Long.parseLong(raw);
             if (result <= 0) {
                 throw new IllegalArgumentException(name + " must be a positive integer");
             }

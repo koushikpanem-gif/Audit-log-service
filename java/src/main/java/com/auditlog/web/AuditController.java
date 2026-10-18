@@ -10,6 +10,7 @@ import com.auditlog.service.EventQueryService.CheckpointView;
 import com.auditlog.service.EventQueryService.EventPage;
 import com.auditlog.service.EventQueryService.EventView;
 import com.auditlog.service.ExportBundleService;
+import com.auditlog.service.ExportSetService;
 import com.auditlog.verify.LedgerVerifier;
 import com.auditlog.verify.VerificationReport;
 import com.auditlog.web.ApiKeyAuthenticator.AuthenticatedPrincipal;
@@ -18,6 +19,11 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import java.net.URI;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
@@ -39,18 +45,21 @@ public class AuditController {
     private final CheckpointSigner signer;
     private final LedgerVerifier verifier;
     private final ExportBundleService exportService;
+    private final ExportSetService exportSetService;
 
     public AuditController(
             AppendEventService appendService,
             EventQueryService queryService,
             CheckpointSigner signer,
             LedgerVerifier verifier,
-            ExportBundleService exportService) {
+            ExportBundleService exportService,
+            ExportSetService exportSetService) {
         this.appendService = appendService;
         this.queryService = queryService;
         this.signer = signer;
         this.verifier = verifier;
         this.exportService = exportService;
+        this.exportSetService = exportSetService;
     }
 
     @GetMapping(value = "/audit/export", produces = "application/json")
@@ -70,6 +79,55 @@ public class AuditController {
         return ResponseEntity.ok()
                 .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
                 .body(canonical);
+    }
+
+    @PostMapping(value = "/audit/export-sets", produces = "application/json")
+    @Operation(summary = "Start a bounded, complete, chunked export set; returns an export-set descriptor")
+    @SecurityRequirement(name = "apiKeyAuth")
+    public ResponseEntity<Map<String, Object>> createExportSet(
+            @RequestParam(required = false) String actorId,
+            @RequestParam(required = false) String resourceType,
+            @RequestParam(required = false) String resourceId,
+            @RequestParam(required = false) String eventType,
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to,
+            HttpServletRequest httpRequest) {
+        BundleSelection selection = new BundleSelection(
+                actorId, resourceType, resourceId, eventType,
+                BundleSelection.normalizeTimestamp(from), BundleSelection.normalizeTimestamp(to), null, null);
+        Map<String, Object> descriptor = exportSetService.create(selection, principal(httpRequest).name());
+        return ResponseEntity.accepted()
+                .location(URI.create("/audit/export-sets/" + descriptor.get("exportSetId")))
+                .body(descriptor);
+    }
+
+    @GetMapping(value = "/audit/export-sets/{id}", produces = "application/json")
+    @Operation(summary = "Export-set descriptor and job status")
+    @SecurityRequirement(name = "apiKeyAuth")
+    public Map<String, Object> exportSet(@PathVariable String id) {
+        return exportSetService.describe(id);
+    }
+
+    @GetMapping(value = "/audit/export-sets/{id}/manifest", produces = "application/json")
+    @Operation(summary = "Download the signed export-set manifest")
+    @SecurityRequirement(name = "apiKeyAuth")
+    public ResponseEntity<Resource> exportSetManifest(@PathVariable String id) throws IOException {
+        return file(exportSetService.manifestFile(id));
+    }
+
+    @GetMapping(value = "/audit/export-sets/{id}/chunks/{name}", produces = "application/json")
+    @Operation(summary = "Download one export-set chunk named in the manifest")
+    @SecurityRequirement(name = "apiKeyAuth")
+    public ResponseEntity<Resource> exportSetChunk(@PathVariable String id, @PathVariable String name)
+            throws IOException {
+        return file(exportSetService.chunkFile(id, name));
+    }
+
+    private static ResponseEntity<Resource> file(Path path) throws IOException {
+        return ResponseEntity.ok()
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .contentLength(Files.size(path))
+                .body(new FileSystemResource(path));
     }
 
     @GetMapping("/audit/verify")

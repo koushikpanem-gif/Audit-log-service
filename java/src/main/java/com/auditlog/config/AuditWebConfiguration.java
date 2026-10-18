@@ -4,6 +4,7 @@ import com.auditlog.core.crypto.CheckpointSigner;
 import com.auditlog.service.AppendEventService;
 import com.auditlog.service.EventQueryService;
 import com.auditlog.service.ExportBundleService;
+import com.auditlog.service.ExportSetService;
 import com.auditlog.store.JdbcAuditRepository;
 import com.auditlog.verify.LedgerVerifier;
 import com.auditlog.web.ApiKeyAuthenticator;
@@ -15,6 +16,8 @@ import java.sql.SQLException;
 import java.time.Clock;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
@@ -38,6 +41,11 @@ public class AuditWebConfiguration {
             "AUDIT_MAX_LEAVES",
             "AUDIT_EXPORT_MAX_RECORDS",
             "AUDIT_EXPORT_MAX_BYTES",
+            "AUDIT_EXPORT_DIR",
+            "AUDIT_EXPORT_CHUNK_MAX_RECORDS",
+            "AUDIT_EXPORT_CHUNK_MAX_BYTES",
+            "AUDIT_EXPORT_SET_MAX_RECORDS",
+            "AUDIT_EXPORT_SET_TTL_SECONDS",
             "AUDIT_SIGNING_PRIVATE_KEY",
             "AUDIT_SIGNING_PUBLIC_KEY",
             "AUDIT_API_KEYS_FILE"
@@ -103,6 +111,21 @@ public class AuditWebConfiguration {
             CheckpointSigner signer,
             AppendEventService appendService) {
         return new ExportBundleService(repository, configuration, signer, appendService);
+    }
+
+    @Bean
+    public ExportSetService exportSetService(
+            JdbcAuditRepository repository,
+            AuditConfiguration configuration,
+            CheckpointSigner signer,
+            AppendEventService appendService,
+            Clock auditClock) {
+        Executor executor = Executors.newSingleThreadExecutor(runnable -> {
+            Thread thread = new Thread(runnable, "export-set-worker");
+            thread.setDaemon(true);
+            return thread;
+        });
+        return new ExportSetService(repository, configuration, signer, appendService, auditClock, executor);
     }
 
     @Bean
