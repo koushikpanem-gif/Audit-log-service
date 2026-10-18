@@ -84,3 +84,25 @@ Actual AI changes and validation only; not engineer approval.
   and production integration were not run.
 - **Git:** Authorized commit message: `feat: implement Ed25519 signing and
   configuration`. No push or engineer sign-off claimed.
+
+## Action 06 — SQLite schema and transactions
+
+- **Changed:** Added version-1 SQLite DDL, ledger binding and explicit
+  unsupported/unversioned schema refusal; JDBC `AuditRepository` and adapter
+  open a fresh configured connection per operation, serialize writes with
+  `BEGIN IMMEDIATE`, and provide read-only snapshots with rollback on failure.
+  Added required indexes, foreign keys, JSON/hash constraints, and event,
+  payload-leaf, and checkpoint guard triggers. Cleanup/archive job tables
+  remain deferred to their owning actions.
+- **Validation:** Focused `mvn -B -f java\pom.xml
+  '-Dtest=JdbcAuditRepositoryTests' test` passed (6 tests); full
+  `mvn -B -f java\pom.xml verify` passed (32 tests). Tests cover schema
+  initialization/reopen/version and ledger mismatch, PRAGMAs, rollback,
+  serialized concurrent writers, stable read snapshots, real matching rows
+  for every trigger, valid archive transition, and foreign-key/JSON constraints.
+  Python regression checks (`ruff check .`, `ruff format --check .`,
+  `mypy src`, `python -m pytest` with 76 passed, `pip check`) also passed;
+  Python sources were unchanged. Remote CI and cross-process stress were not
+  run.
+- **Git:** Authorized commit message: `feat: implement SQLite schema and
+  transactions`. No push or engineer sign-off claimed.

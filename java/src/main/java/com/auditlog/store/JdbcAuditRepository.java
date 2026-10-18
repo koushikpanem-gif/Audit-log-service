@@ -1,0 +1,265 @@
+package com.auditlog.store;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+
+public final class JdbcAuditRepository implements AuditRepository {
+
+    public static final int SCHEMA_VERSION = 1;
+    private static final String SCHEMA_RESOURCE = "/db/schema-v1.sql";
+    private final Path databasePath;
+    private final String ledgerId;
+    private final String jdbcUrl;
+    private final String schemaSql;
+
+    public JdbcAuditRepository(Path databasePath, String ledgerId) throws SQLException {
+        this.databasePath = Objects.requireNonNull(databasePath, "databasePath")
+                .toAbsolutePath()
+                .normalize();
+        if (ledgerId == null || ledgerId.isBlank()) {
+            throw new IllegalArgumentException("ledgerId must be non-empty");
+        }
+        this.ledgerId = ledgerId;
+        this.jdbcUrl = "jdbc:sqlite:" + this.databasePath;
+        this.schemaSql = loadSchema();
+        initialize();
+    }
+
+    public Path databasePath() {
+        return databasePath;
+    }
+
+    @Override
+    public <T> T writeTransaction(TransactionWork<T> work) throws SQLException {
+        return inTransaction(work, true);
+    }
+
+    @Override
+    public <T> T readSnapshot(TransactionWork<T> work) throws SQLException {
+        return inTransaction(work, false);
+    }
+
+    private <T> T inTransaction(TransactionWork<T> work, boolean immediate) throws SQLException {
+        Objects.requireNonNull(work, "work");
+        try (Connection connection = openConnection(false, !immediate);
+                Statement transaction = connection.createStatement()) {
+            try {
+                transaction.execute(immediate ? "BEGIN IMMEDIATE" : "BEGIN");
+                T result = work.execute(connection);
+                transaction.execute("COMMIT");
+                return result;
+            } catch (SQLException | RuntimeException | Error failure) {
+                rollback(transaction, failure);
+                if (failure instanceof SQLException sqlException) {
+                    throw translateBusy(sqlException);
+                }
+                throw failure;
+            }
+        } catch (SQLException exception) {
+            if (exception instanceof StorageBusyException) {
+                throw exception;
+            }
+            throw translateBusy(exception);
+        }
+    }
+
+    private void initialize() throws SQLException {
+        try {
+            Path parent = databasePath.getParent();
+            if (parent != null) {
+                Files.createDirectories(parent);
+            }
+        } catch (IOException exception) {
+            throw new SQLException("Unable to create SQLite database directory", exception);
+        }
+
+        try (Connection connection = openConnection(true);
+                Statement statement = connection.createStatement()) {
+            try {
+                statement.execute("BEGIN IMMEDIATE");
+                int version = readUserVersion(statement);
+                if (version == SCHEMA_VERSION) {
+                    verifyLedgerBinding(connection);
+                    statement.execute("COMMIT");
+                    return;
+                }
+                if (version != 0) {
+                    throw new SQLException("Unsupported SQLite schema version: " + version);
+                }
+                if (hasApplicationTables(connection)) {
+                    throw new SQLException("Unversioned SQLite schema cannot be migrated safely");
+                }
+                for (String sql : splitSchemaStatements(schemaSql)) {
+                    statement.execute(sql);
+                }
+                try (var insert = connection.prepareStatement(
+                        "INSERT INTO ledger_meta(singleton, ledger_id, schema_version) VALUES (1, ?, ?)")) {
+                    insert.setString(1, ledgerId);
+                    insert.setInt(2, SCHEMA_VERSION);
+                    insert.executeUpdate();
+                }
+                statement.execute("PRAGMA user_version = " + SCHEMA_VERSION);
+                verifyLedgerBinding(connection);
+                statement.execute("COMMIT");
+            } catch (SQLException | RuntimeException | Error failure) {
+                rollback(statement, failure);
+                if (failure instanceof SQLException sqlException) {
+                    throw translateBusy(sqlException);
+                }
+                throw failure;
+            }
+        }
+    }
+
+    private Connection openConnection(boolean initializeWal) throws SQLException {
+        return openConnection(initializeWal, false);
+    }
+
+    private Connection openConnection(boolean initializeWal, boolean queryOnly) throws SQLException {
+        Connection connection = DriverManager.getConnection(jdbcUrl);
+        boolean configured = false;
+        try (Statement statement = connection.createStatement()) {
+            statement.execute("PRAGMA busy_timeout = 30000");
+            statement.execute("PRAGMA foreign_keys = ON");
+            statement.execute("PRAGMA secure_delete = ON");
+            statement.execute("PRAGMA synchronous = FULL");
+            if (queryOnly) {
+                statement.execute("PRAGMA query_only = ON");
+            }
+            if (initializeWal) {
+                try (ResultSet result = statement.executeQuery("PRAGMA journal_mode = WAL")) {
+                    if (!result.next() || !"wal".equalsIgnoreCase(result.getString(1))) {
+                        throw new SQLException("SQLite could not enable WAL mode");
+                    }
+                }
+            } else {
+                try (ResultSet result = statement.executeQuery("PRAGMA journal_mode")) {
+                    if (!result.next() || !"wal".equalsIgnoreCase(result.getString(1))) {
+                        throw new SQLException("SQLite database is not in WAL mode");
+                    }
+                }
+            }
+            configured = true;
+            return connection;
+        } finally {
+            if (!configured) {
+                connection.close();
+            }
+        }
+    }
+
+    private void verifyLedgerBinding(Connection connection) throws SQLException {
+        try (Statement versionStatement = connection.createStatement()) {
+            if (readUserVersion(versionStatement) != SCHEMA_VERSION) {
+                throw new SQLException("SQLite user_version does not match schema version");
+            }
+        }
+        try (var statement = connection.prepareStatement(
+                    "SELECT ledger_id, schema_version FROM ledger_meta WHERE singleton = 1");
+                ResultSet result = statement.executeQuery()) {
+            if (!result.next()) {
+                throw new SQLException("SQLite ledger metadata is missing");
+            }
+            String storedLedgerId = result.getString("ledger_id");
+            int storedSchemaVersion = result.getInt("schema_version");
+            if (result.next()) {
+                throw new SQLException("SQLite database contains multiple ledger metadata rows");
+            }
+            if (!ledgerId.equals(storedLedgerId)) {
+                throw new SQLException("SQLite database is bound to a different ledger ID");
+            }
+            if (storedSchemaVersion != SCHEMA_VERSION) {
+                throw new SQLException("SQLite ledger metadata schema version is unsupported");
+            }
+        }
+    }
+
+    private static int readUserVersion(Statement statement) throws SQLException {
+        try (ResultSet result = statement.executeQuery("PRAGMA user_version")) {
+            if (!result.next()) {
+                throw new SQLException("SQLite user_version is unavailable");
+            }
+            return result.getInt(1);
+        }
+    }
+
+    private static boolean hasApplicationTables(Connection connection) throws SQLException {
+        try (var statement = connection.prepareStatement(
+                    "SELECT 1 FROM sqlite_master WHERE type = 'table' "
+                            + "AND name NOT LIKE 'sqlite_%' LIMIT 1");
+                ResultSet result = statement.executeQuery()) {
+            return result.next();
+        }
+    }
+
+    private static String loadSchema() throws SQLException {
+        try (InputStream input = JdbcAuditRepository.class.getResourceAsStream(SCHEMA_RESOURCE)) {
+            if (input == null) {
+                throw new SQLException("SQLite schema resource is missing: " + SCHEMA_RESOURCE);
+            }
+            return new String(input.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        } catch (IOException exception) {
+            throw new SQLException("Unable to read SQLite schema resource", exception);
+        }
+    }
+
+    private static List<String> splitSchemaStatements(String schema) throws SQLException {
+        List<String> statements = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        boolean inTrigger = false;
+        for (String line : schema.split("\\R")) {
+            String trimmed = line.trim();
+            if (trimmed.toUpperCase(java.util.Locale.ROOT).startsWith("CREATE TRIGGER ")) {
+                inTrigger = true;
+            }
+            current.append(line).append('\n');
+            if (inTrigger) {
+                if (trimmed.equalsIgnoreCase("END;")) {
+                    statements.add(current.toString());
+                    current.setLength(0);
+                    inTrigger = false;
+                }
+            } else if (trimmed.endsWith(";")) {
+                statements.add(current.toString());
+                current.setLength(0);
+            }
+        }
+        if (inTrigger || !current.toString().isBlank()) {
+            throw new SQLException("SQLite schema resource has an incomplete statement");
+        }
+        return statements;
+    }
+
+    private static void rollback(Statement transaction, Throwable originalFailure) {
+        try {
+            transaction.execute("ROLLBACK");
+        } catch (SQLException rollbackFailure) {
+            originalFailure.addSuppressed(rollbackFailure);
+        }
+    }
+
+    private static SQLException translateBusy(SQLException exception) {
+        if (exception instanceof StorageBusyException) {
+            return exception;
+        }
+        SQLException current = exception;
+        while (current != null) {
+            int primaryCode = current.getErrorCode() & 0xff;
+            if (primaryCode == 5 || primaryCode == 6) {
+                return new StorageBusyException(exception);
+            }
+            current = current.getNextException();
+        }
+        return exception;
+    }
+}

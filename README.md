@@ -2,9 +2,10 @@
 
 This repository is being implemented in numbered actions. The Java and Python
 scaffolds include health endpoints, strict JCS/v1 hashing, salted payload
-commitments, and Action 05's Ed25519 checkpoint signer/configuration helpers.
-Ledger append/query, persistent checkpointing, redaction, export, verification,
-and compliance-report behavior remain pending later actions.
+commitments, Action 05's Ed25519 checkpoint signer/configuration helpers, and
+Action 06's versioned SQLite schema and JDBC transaction repository. Ledger
+append/query, persistent checkpointing, redaction, export, verification, and
+compliance-report behavior remain pending later actions.
 
 The requirements and acceptance mapping are in
 [`docs/BUILD_REQUIREMENTS.txt`](./docs/BUILD_REQUIREMENTS.txt) and
@@ -29,6 +30,8 @@ unchanged and are not used by the new `java/` or `python/` builds.
 Checkpoint key/configuration contracts and limits are documented in
 [`docs/configuration-and-signing.md`](./docs/configuration-and-signing.md).
 Do not use the clearly marked test-only Ed25519 fixture outside tests.
+SQLite schema and transaction decisions are recorded in
+[`docs/adr/0003-storage-and-transaction-model.md`](./docs/adr/0003-storage-and-transaction-model.md).
 
 ## Local checks
 
