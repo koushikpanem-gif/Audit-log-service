@@ -33,6 +33,7 @@ class AuditConfiguration:
     signing_private_key: Path
     signing_public_key: Path
     api_keys_file: Path | None
+    db_path: Path = Path("audit-data/audit.db")
 
     @classmethod
     def from_environment(
@@ -97,6 +98,7 @@ class AuditConfiguration:
                 _get(env, "AUDIT_SIGNING_PUBLIC_KEY", "audit-data/signing-public.b64")
             ),
             api_keys_file=api_keys_file,
+            db_path=Path(_get(env, "AUDIT_DB_PATH", "audit-data/audit.db")),
         )
 
     def load_signer(self) -> CheckpointSigner:

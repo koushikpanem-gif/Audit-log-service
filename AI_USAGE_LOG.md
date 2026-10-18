@@ -361,3 +361,10 @@ Actual AI changes and validation only; not engineer approval.
 - **Validation:** `mvn -B -f java\pom.xml verify` BUILD SUCCESS, 211 tests (1 skipped = gated regeneration). Python: ruff check, ruff format --check, mypy src clean; pytest 159 passed, 1 skipped (symlink test: unavailable on this Windows account); generate_verifier_vectors.py --check clean.
 - **Not done / blocked:** bandit and pip-audit not run; no multi-process tests; Java-signed and Python-signed fixtures share the public test key and an author, so independence is of code, not of people; no human sign-off.
 - **Git:** single local commit `feat: implement independent Python evidence verifier`.
+
+## Action 17: Python append, query and checkpoints
+- **Scope**: Python config/auth/SQLite adapter, append/query/checkpoint services and Starlette routes. Unbuilt routes return 501.
+- **AI decisions**: (accepted) app factory instead of a module-level app, because import created files; (accepted) SQL schema and migrations copied verbatim from Java, with no sharing mechanism; (accepted) POST /audit/admin/checkpoints added in Python only, because Java lacks it, and the gap is disclosed; (modified) the trigger test was wrong, since the archive CHECK constraint needs archived_at and nulled columns, so I fixed the test and not the product; (modified) ruff E501 is ignored for tests only and the product code remains at 88 columns; (rejected) a Swagger UI dependency, replaced by a simple HTML route table.
+- **Validation**: in python/ I ran ruff check, ruff format --check and mypy src, all clean. pytest -q gave 221 passed and 1 skipped, covering real SQLite, threads, spawned processes, restart, rollback, snapshots and busy to 503. Java was untouched, so mvn verify was not run.
+- **Not done / blocked**: bandit and pip-audit not run. Verify, export, redaction, archive and report are not built in Python. No human sign-off.
+- **Git**: one local commit, hash reported in the hand-off.
