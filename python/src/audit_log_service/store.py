@@ -3,6 +3,7 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import dataclass
 from importlib import resources
 from pathlib import Path
 
@@ -25,6 +26,24 @@ class LedgerMismatchError(StorageError):
 
 class StorageConflictError(StorageError):
     """Raised when a constraint or guard trigger rejects a change."""
+
+
+@dataclass(frozen=True)
+class WalCheckpoint:
+    """Row of PRAGMA wal_checkpoint: busy flag, WAL frames, checkpointed frames."""
+
+    busy: int
+    log_frames: int
+    checkpointed_frames: int
+
+    @property
+    def complete(self) -> bool:
+        """True only when nothing blocked and the whole WAL was checkpointed."""
+        return (
+            self.busy == 0
+            and self.log_frames >= 0
+            and self.log_frames == self.checkpointed_frames
+        )
 
 
 def _translate(exc: sqlite3.Error) -> StorageError:
@@ -153,6 +172,29 @@ class SqliteStore:
             raise LedgerMismatchError("Ledger metadata does not match the schema")
         if row["ledger_id"] != self._ledger_id:
             raise LedgerMismatchError("Database belongs to a different ledger")
+
+    def checkpoint_wal_truncate(self, busy_timeout_ms: int) -> WalCheckpoint:
+        """Run PRAGMA wal_checkpoint(TRUNCATE) and return its result tuple.
+
+        SQLite reports a checkpoint blocked by a reader as busy=1 in the returned
+        row rather than raising, so callers must inspect the tuple.
+        """
+        if busy_timeout_ms <= 0:
+            raise ValueError("busy_timeout_ms must be positive")
+        connection = self._connect()
+        try:
+            connection.execute(f"PRAGMA busy_timeout = {busy_timeout_ms}")
+            row = connection.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
+            if row is None:
+                raise StorageError("wal_checkpoint returned no result row")
+            return WalCheckpoint(int(row[0]), int(row[1]), int(row[2]))
+        except sqlite3.Error as exc:
+            translated = _translate(exc)
+            if isinstance(translated, StorageBusyError):
+                return WalCheckpoint(1, -1, -1)
+            raise translated from exc
+        finally:
+            connection.close()
 
     @contextmanager
     def write_transaction(self) -> Iterator[sqlite3.Connection]:

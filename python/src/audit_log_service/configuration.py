@@ -41,6 +41,11 @@ class AuditConfiguration:
     export_chunk_max_bytes: int = 8 * 1024 * 1024
     export_set_max_records: int = 1_000_000
     export_set_ttl_seconds: int = 86_400
+    cleanup_max_attempts: int = 3
+    cleanup_busy_timeout_ms: int = 1000
+    archive_dir: Path = Path("audit-data/archives")
+    archive_max_records: int = 1000
+    archive_max_bytes: int = 8 * 1024 * 1024
 
     @classmethod
     def from_environment(
@@ -110,6 +115,25 @@ class AuditConfiguration:
             else db_path.parent / "exports"
         )
 
+        cleanup_attempts = _positive_int(env, "AUDIT_CLEANUP_MAX_ATTEMPTS", 3)
+        cleanup_timeout = _positive_int(env, "AUDIT_CLEANUP_BUSY_TIMEOUT_MS", 1000)
+        _bounded("AUDIT_CLEANUP_MAX_ATTEMPTS", cleanup_attempts, 10)
+        _bounded("AUDIT_CLEANUP_BUSY_TIMEOUT_MS", cleanup_timeout, 30_000)
+        archive_max_records = _positive_int(env, "AUDIT_ARCHIVE_MAX_RECORDS", 1000)
+        archive_max_bytes = _positive_int(env, "AUDIT_ARCHIVE_MAX_BYTES", 8 * 1024**2)
+        _bounded("AUDIT_ARCHIVE_MAX_RECORDS", archive_max_records, 100_000)
+        _bounded("AUDIT_ARCHIVE_MAX_BYTES", archive_max_bytes, 64 * 1024**2)
+        if archive_max_bytes < 65_536:
+            raise ConfigurationError("AUDIT_ARCHIVE_MAX_BYTES must be at least 65536")
+        archive_dir_value = env.get("AUDIT_ARCHIVE_DIR")
+        if archive_dir_value is not None and not archive_dir_value.strip():
+            raise ConfigurationError("AUDIT_ARCHIVE_DIR must be non-empty when set")
+        archive_dir = (
+            Path(archive_dir_value)
+            if archive_dir_value is not None
+            else db_path.parent / "archives"
+        )
+
         api_keys_value = env.get("AUDIT_API_KEYS_FILE")
         api_keys_file = Path(api_keys_value) if api_keys_value else None
         if environment == "prod" and api_keys_file is None:
@@ -138,6 +162,11 @@ class AuditConfiguration:
             export_chunk_max_bytes=chunk_max_bytes,
             export_set_max_records=set_max_records,
             export_set_ttl_seconds=set_ttl,
+            cleanup_max_attempts=cleanup_attempts,
+            cleanup_busy_timeout_ms=cleanup_timeout,
+            archive_dir=archive_dir,
+            archive_max_records=archive_max_records,
+            archive_max_bytes=archive_max_bytes,
         )
 
     def load_signer(self) -> CheckpointSigner:

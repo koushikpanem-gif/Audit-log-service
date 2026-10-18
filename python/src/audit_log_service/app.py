@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import html
 from collections.abc import Awaitable, Callable
 from typing import Any
@@ -12,6 +13,8 @@ from starlette.responses import HTMLResponse, JSONResponse, Response
 from starlette.routing import Route
 
 from audit_log_service import auth
+from audit_log_service.archive import ArchiveService
+from audit_log_service.archive_audit import ArchiveAuditService
 from audit_log_service.auth import ApiKeyAuthenticator, Principal
 from audit_log_service.canonical_json import (
     MAX_INPUT_BYTES,
@@ -30,6 +33,7 @@ from audit_log_service.ledger import (
     system_clock,
 )
 from audit_log_service.ledger_verifier import LedgerVerifier
+from audit_log_service.redaction import RedactionCleanupService, RedactionService
 from audit_log_service.signing import CheckpointSigner
 from audit_log_service.store import (
     SqliteStore,
@@ -43,8 +47,6 @@ Handler = Callable[[Request], Awaitable[Response]]
 # Routes in the contract that later actions implement. They authenticate and
 # authorize like the real routes, then report that they are not built.
 _UNBUILT: tuple[tuple[str, str, frozenset[str], str], ...] = (
-    ("POST", "/audit/admin/redactions", auth.ADMIN_ROLES, "Redaction"),
-    ("POST", "/audit/admin/archive", auth.ADMIN_ROLES, "Archiving"),
     (
         "GET",
         "/compliance/account-access-report",
@@ -52,6 +54,8 @@ _UNBUILT: tuple[tuple[str, str, frozenset[str], str], ...] = (
         "The account-access report",
     ),
 )
+
+_REDACTION_FIELDS = frozenset({"eventId", "paths", "reason", "ticketId"})
 
 
 def error_response(
@@ -86,6 +90,87 @@ class AuditApi:
         self.export_sets = ExportSetService(
             store, configuration, signer, self.append_service, clock
         )
+        self.cleanup = RedactionCleanupService(store, configuration, clock)
+        self.redaction = RedactionService(
+            store, configuration, self.append_service, self.cleanup
+        )
+        self.archive = ArchiveService(
+            store, configuration, signer, self.append_service, clock
+        )
+        self.archive_audit = ArchiveAuditService(
+            store, configuration, signer.public_key_base64, signer.key_id, clock
+        )
+
+    def recover(self) -> None:
+        """Start-up recovery; failures are left for the explicit admin routes."""
+        for step in (self.cleanup.recover, self.archive.reconcile):
+            with contextlib.suppress(ApiError, StorageError):
+                step()
+
+    async def _json_object(self, request: Request) -> dict[str, Any]:
+        body = await self.read_body(request)
+        try:
+            parsed = parse_json(body, max_bytes=self.body_limit, max_depth=4)
+        except CanonicalJsonError as exc:
+            raise ApiError(
+                422, "INVALID_JSON", "Request body is not valid strict JSON"
+            ) from exc
+        if not isinstance(parsed, dict):
+            raise invalid("Request body must be a JSON object")
+        return parsed
+
+    async def redact(self, request: Request) -> Response:
+        principal = self.principal(request, auth.ADMIN_ROLES)
+        parsed = await self._json_object(request)
+        if set(parsed) != _REDACTION_FIELDS:
+            raise invalid("Body must contain exactly eventId, paths, reason, ticketId")
+        result = await run_in_threadpool(
+            self.redaction.redact,
+            parsed["eventId"],
+            parsed["paths"],
+            parsed["reason"],
+            parsed["ticketId"],
+            principal.name,
+        )
+        return JSONResponse(
+            result,
+            status_code=201,
+            headers={"Location": f"/audit/events/{result['redactionEventId']}"},
+        )
+
+    async def cleanup_status(self, request: Request) -> Response:
+        self.principal(request, auth.ADMIN_ROLES)
+        return JSONResponse(await run_in_threadpool(self.cleanup.status))
+
+    async def cleanup_retry(self, request: Request) -> Response:
+        self.principal(request, auth.ADMIN_ROLES)
+
+        def retry() -> dict[str, Any]:
+            self.cleanup.run_pending()
+            return self.cleanup.status()
+
+        return JSONResponse(await run_in_threadpool(retry))
+
+    async def archive_records(self, request: Request) -> Response:
+        principal = self.principal(request, auth.ADMIN_ROLES)
+        parsed = await self._json_object(request)
+        dry_run = parsed.get("dryRun")
+        if set(parsed) != {"dryRun"} or not isinstance(dry_run, bool):
+            raise invalid('Body must be exactly {"dryRun": true|false}')
+        result = await run_in_threadpool(self.archive.archive, dry_run, principal.name)
+        return JSONResponse(result)
+
+    async def archive_jobs(self, request: Request) -> Response:
+        self.principal(request, auth.ADMIN_ROLES)
+        return JSONResponse(await run_in_threadpool(self.archive.status))
+
+    async def archive_reconcile(self, request: Request) -> Response:
+        self.principal(request, auth.ADMIN_ROLES)
+        return JSONResponse(await run_in_threadpool(self.archive.reconcile))
+
+    async def archive_audit_report(self, request: Request) -> Response:
+        self.principal(request, auth.AUDITOR_ROLES)
+        return JSONResponse(await run_in_threadpool(self.archive_audit.audit))
 
     def principal(self, request: Request, roles: frozenset[str]) -> Principal:
         principal = self.authenticator.authenticate(request.headers.get("x-api-key"))
@@ -347,6 +432,7 @@ def create_app(
     authenticator = ApiKeyAuthenticator(config)
     store = SqliteStore(config.db_path, config.ledger_id)
     api = AuditApi(config, store, signer, authenticator, clock)
+    api.recover()
 
     routes = [
         Route("/health", api.health, methods=["GET"]),
@@ -372,6 +458,21 @@ def create_app(
             api.get_export_chunk,
             methods=["GET"],
         ),
+        Route("/audit/admin/redactions", api.redact, methods=["POST"]),
+        Route("/audit/admin/redaction-cleanups", api.cleanup_status, methods=["GET"]),
+        Route(
+            "/audit/admin/redaction-cleanups/retry",
+            api.cleanup_retry,
+            methods=["POST"],
+        ),
+        Route("/audit/admin/archive", api.archive_records, methods=["POST"]),
+        Route("/audit/admin/archive-jobs", api.archive_jobs, methods=["GET"]),
+        Route(
+            "/audit/admin/archive-jobs/reconcile",
+            api.archive_reconcile,
+            methods=["POST"],
+        ),
+        Route("/audit/archive-audit", api.archive_audit_report, methods=["GET"]),
     ]
     routes.extend(
         Route(path, api.unbuilt(roles, feature), methods=[method])
@@ -445,6 +546,38 @@ def openapi_document() -> dict[str, Any]:
         },
         "/audit/export-sets/{exportSetId}/chunks/{name}": {
             "get": operation("Download one chunk", "auditor", 401, 403, 404, 409, 410)
+        },
+        "/audit/admin/redactions": {
+            "post": operation(
+                "Redact payload values", "admin", 401, 403, 404, 409, 422, 503
+            )
+        },
+        "/audit/admin/redaction-cleanups": {
+            "get": operation("Redaction cleanup status", "admin", 401, 403)
+        },
+        "/audit/admin/redaction-cleanups/retry": {
+            "post": operation("Retry redaction cleanup", "admin", 401, 403)
+        },
+        "/audit/admin/archive": {
+            "post": operation(
+                "Archive expired records (dryRun supported)",
+                "admin",
+                401,
+                403,
+                409,
+                422,
+                500,
+                503,
+            )
+        },
+        "/audit/admin/archive-jobs": {
+            "get": operation("Archive job status", "admin", 401, 403)
+        },
+        "/audit/admin/archive-jobs/reconcile": {
+            "post": operation("Reconcile archive jobs", "admin", 401, 403, 409)
+        },
+        "/audit/archive-audit": {
+            "get": operation("Audit archive files", "auditor", 401, 403, 503)
         },
     }
     for method, path, roles, feature in _UNBUILT:

@@ -475,8 +475,6 @@ def test_public_endpoints_need_no_credentials(client: TestClient) -> None:
     ("method", "path", "headers", "role_ok"),
     [
         ("get", "/compliance/account-access-report", AUDITOR, True),
-        ("post", "/audit/admin/redactions", ADMIN, True),
-        ("post", "/audit/admin/archive", ADMIN, True),
     ],
 )
 def test_unbuilt_routes_never_fabricate_success(
