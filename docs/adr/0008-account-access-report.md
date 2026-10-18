@@ -1,7 +1,7 @@
 # ADR-0008: Internal account-access compliance report
 
-- **Status:** Proposed pending Scenario C stakeholder/engineer clarification. Java implementation exists
-  (Action 15, see [account-access-report.md](../account-access-report.md)); answers remain unconfirmed assumptions.
+- **Status:** Implemented in Java (Action 15) and Python (Action 20) on unconfirmed assumptions; see
+  [account-access-report.md](../account-access-report.md). Stakeholder/engineer clarification is still pending.
 - **Context:** The assignment requests an account-access report but explicitly
   requires unresolved business/legal questions to remain visible.
 - **Decision:** The provisional scope is an on-demand report for an internal
@@ -16,5 +16,5 @@
 - **Consequences:** Label integrity-failed reports untrustworthy and disclose
   retained-live, archive and upstream coverage limits. This does not provide a
   regulator portal or legal opinion and cannot detect events never received.
-  Questions and assumptions in `scenario-c.md` require owner review before
-  implementation.
+  Questions and assumptions in `scenario-c.md` still require owner review; the
+  implementation may change when answers arrive.

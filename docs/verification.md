@@ -55,8 +55,8 @@ service events (`source = "system"`, reserved type):
   `S` is authorized by any validated event after `S` with `archivedThroughSeq >= S`.
 - A malformed authorization grants nothing and yields `MALFORMED_RECORD`.
 
-Assumptions (the writers arrive in later actions, so these schemas follow the
-payload names in the build requirements): retention is judged against the
+Assumptions (written when the verifier was built, before the redaction and archive
+writers; the writers later used the same payload names): retention is judged against the
 retention declared in the event, not live configuration; archive-file
 availability and bundle integrity are **not** audited here.
 

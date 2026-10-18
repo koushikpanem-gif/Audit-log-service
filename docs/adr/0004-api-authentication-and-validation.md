@@ -1,7 +1,7 @@
 # ADR-0004: API, authentication, and input validation
 
-- **Status:** Accepted as a supplied contract; append/query HTTP routes are
-  implemented. Remaining routes belong to later actions.
+- **Status:** Accepted as a supplied contract; all routes are implemented in both
+  services (route list in [api.md](../api.md)).
 - **Context:** Writers, readers, auditors and administrators need distinct
   capabilities without trusting request-supplied identity or source.
 - **Decision:** Authenticate with `X-API-Key`; persist only key hashes and

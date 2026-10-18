@@ -1,4 +1,4 @@
-# Scaffold dependency versions
+# Dependency versions (bootstrap pins)
 
 Resolved on **2026-10-18** from official Maven Central, PyPI, and upstream
 project release documentation. These are scaffold pins, not a claim that the
@@ -33,7 +33,7 @@ is 3.11.
 |---|---:|---|
 | [Starlette](https://pypi.org/project/starlette/) | 1.8.0 | ASGI application; upstream release requires Python >=3.11. |
 | [Pydantic](https://pypi.org/project/pydantic/) | 2.14.1 | Data/schema validation stack. |
-| [cryptography](https://pypi.org/project/cryptography/) | 50.0.2 | Cryptographic implementation dependency for later actions. |
+| [cryptography](https://pypi.org/project/cryptography/) | 50.0.2 | Ed25519 signing and verification in the Python service and verifier. |
 | [rfc8785](https://pypi.org/project/rfc8785/) | 0.1.4 | Pure-Python RFC 8785 canonical serializer. |
 | [Uvicorn](https://pypi.org/project/uvicorn/) | 0.54.0 | ASGI development/runtime server. |
 | [pytest](https://pypi.org/project/pytest/) | 9.1.1 | Tests. |

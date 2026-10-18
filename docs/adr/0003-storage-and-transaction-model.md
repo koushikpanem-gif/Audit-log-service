@@ -1,6 +1,6 @@
 # ADR-0003: SQLite storage and transaction model
 
-- **Status:** Accepted as a supplied design constraint; validation is pending.
+- **Status:** Accepted as a supplied design constraint; implemented in both services and exercised by real-SQLite, concurrency and process tests (see [ENGINEERING_SUMMARY.md](../../ENGINEERING_SUMMARY.md)).
 - **Context:** The chain head and event insertion must be serialized, and
   ordinary application writes should not accidentally mutate immutable rows.
 - **Decision:** One ledger per SQLite database. Bind its ID and schema version

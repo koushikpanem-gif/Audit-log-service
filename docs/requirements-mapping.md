@@ -1,13 +1,15 @@
 # Requirements and acceptance mapping
 
-This is a requirements baseline for later engineering work, not evidence that
-the service or the acceptance checks already exist. IDs are stable traceability
-anchors. The engineer reviews the requirements, resolves the questions in
+This maps the requirements to the acceptance evidence the implementation was
+built against. The "Acceptance evidence" column states the target check; the
+delivered tests and measured results are in
+[`ENGINEERING_SUMMARY.md`](../ENGINEERING_SUMMARY.md), and unverified items are
+listed there. IDs are stable traceability anchors. The engineer reviews the requirements, resolves the questions in
 [`scenario-c.md`](./scenario-c.md), and owns acceptance and sign-off.
 
 ## Shared protocol, platform, and ownership
 
-| ID | Requirement | Acceptance evidence (to be produced during implementation) |
+| ID | Requirement | Acceptance evidence (target check) |
 |---|---|---|
 | SH-01 | Provide Java 21 / Spring Boot 3 / Maven and Python >=3.11 / Starlette services, independent offline Python verifier, shared API/schema/protocol, separate DB files, and the specified repository layout. | Both services build/run independently; Python verifier imports no Java service code; contract and bidirectional cross-language tests pass. |
 | SH-02 | Pin compatible supported dependency versions based on official sources at bootstrap; document version rationale; preserve the specified stack. | Manifests lock exact resolved dependencies and docs record source/date/rationale; dependency and build checks pass. |
@@ -20,7 +22,7 @@ anchors. The engineer reviews the requirements, resolves the questions in
 
 ## Scenario A — append, query, verify
 
-| ID | Requirement | Acceptance evidence (to be produced during implementation) |
+| ID | Requirement | Acceptance evidence (target check) |
 |---|---|---|
 | A-01 | Append valid events with server-generated IDs, sequence, UTC recorded timestamp, source derived from authenticated principal, payload commitments, content/chain hashes; first link uses ledger genesis. | HTTP and real-SQLite tests verify response schema, deterministic canonical hash vector, monotonic timestamps, seq=1 genesis and subsequent predecessor links. |
 | A-02 | Authenticate with `X-API-Key`; compare hashed keys in constant time, store only key hashes/roles, enforce writer/reader/auditor/admin role capabilities, and reserve system sources/types. | HTTP tests cover missing/invalid key, insufficient role, caller-supplied source, reserved event type, and each role matrix. |
@@ -35,7 +37,7 @@ anchors. The engineer reviews the requirements, resolves the questions in
 
 ## Scenario B — redaction, retention, verifiable bulk export
 
-| ID | Requirement | Acceptance evidence (to be produced during implementation) |
+| ID | Requirement | Acceptance evidence (target check) |
 |---|---|---|
 | B-01 | Redact scalar/container subtrees using validated RFC 6901 pointers, including root; expand/deduplicate leaf paths, reject no-op/archived/system targets, append authorization event, delete values and salts, and preserve original hashes/tree. | SQLite/API tests cover pointer escaping, root/subtree expansion, duplicates, absent paths, no-op, archived/system targets and preserved content/chain hashes. |
 | B-02 | After redaction commit, perform bounded WAL checkpoint retries, persist cleanup state, expose admin status/retry and recover after restart; report COMPLETE/PENDING without misrepresenting committed redaction. | Busy-WAL and restart tests prove durable result remains committed, cleanup state is accurate and retries are bounded. |
@@ -52,7 +54,7 @@ anchors. The engineer reviews the requirements, resolves the questions in
 
 ## Scenario C — account-access compliance report
 
-| ID | Requirement | Acceptance evidence (to be produced during implementation) |
+| ID | Requirement | Acceptance evidence (target check) |
 |---|---|---|
 | C-01 | Before implementation, resolve or explicitly label assumptions for account scope, denied/attempt events, subject/period, regulator access, privacy, retention, upstream coverage, completeness, legal holds and minimization. | Engineer-approved answers or explicit unresolved decisions are recorded; no question is presented as stakeholder-confirmed without evidence. |
 | C-02 | Validate `ACCOUNT_DATA_ACCESS`, `CLIENT_ACCOUNT`, all enumerated data categories/access types/purposes/channels/outcomes, conditional `OTHER` justification and denial reason, optional lengths, and extra fields. | Schema/API tests cover each enum, conditional required values, lengths and invalid resource type. |
@@ -64,7 +66,7 @@ anchors. The engineer reviews the requirements, resolves the questions in
 
 ## Quality, security, and completion
 
-| ID | Requirement | Acceptance evidence (to be produced during implementation) |
+| ID | Requirement | Acceptance evidence (target check) |
 |---|---|---|
 | Q-01 | Test unit, integration, HTTP, real SQLite, concurrent threads/processes, restart, rollback, tampering, malformed data, key pinning, busy WAL, archive crash, redaction/archive interactions, exports and snapshot-consistent reports. | Test inventory maps each listed case to a passing test; failures/tool/network gaps are recorded verbatim and not suppressed. |
 | Q-02 | Generate independently authored cross-language vectors and signed bundles in both directions; use only labeled non-production test keys. | Java-produced evidence independently verifies in Python and vice versa; expected values are not produced by the implementation under test. |

@@ -1,7 +1,8 @@
 # ADR-0001: Platform and repository layout
 
-- **Status:** Accepted as the supplied assignment baseline; implementation
-  readiness pending engineer review of the existing starter.
+- **Status:** Accepted as the supplied assignment baseline; both services
+  are implemented under `java/` and `python/`; the pre-existing root starter is untouched and unused, and its
+  disposition is pending engineer review.
 - **Context:** The assignment requires two interoperable services and an
   independent offline verifier. The workspace already has a root-level Spring
   starter, which is not the specified Java location.

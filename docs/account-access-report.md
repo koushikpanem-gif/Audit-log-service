@@ -1,6 +1,6 @@
 # Account-access report (Scenario C, Java implementation)
 
-Status: implemented in Java (Action 15). The Python service does not implement it yet. All Scenario C
+Status: implemented in Java (Action 15) and Python (Action 20). All Scenario C
 answers in [scenario-c.md](./scenario-c.md) remain **assumptions** with no stakeholder confirmation;
 the engineer owns the design and sign-off.
 

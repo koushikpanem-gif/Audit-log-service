@@ -7,6 +7,12 @@ for the engineer/business owner, followed by provisional assumptions that must
 not be represented as confirmed requirements. The working clarified statement
 is explicitly provisional.
 
+Implementation status: the internal auditor report is implemented in both
+services on top of these assumptions (see
+[account-access-report.md](./account-access-report.md)). Building it did not
+confirm any assumption. Every assumption still needs owner review, and the
+questions remain open.
+
 ## Questions requiring owner input
 
 1. **Account data scope:** Which account identifiers and account types are in

@@ -1,39 +1,49 @@
 # Audit Log Service
 
-This repository is being implemented in numbered actions. The Java and Python
-scaffolds include health endpoints, strict JCS/v1 hashing, salted payload
-commitments, Action 05's Ed25519 checkpoint signer/configuration helpers, and
-Action 06's versioned SQLite schema and JDBC transaction repository. Ledger
-append/query, persistent checkpointing, redaction, export, verification, and
-compliance-report behavior remain pending later actions.
+A tamper-evident audit-log service implemented twice against one contract: a Java 21 /
+Spring Boot 3 service (`java/`) and a Python / Starlette service (`python/`) with an
+independent offline verifier. It covers Scenario A (append, query, verify), Scenario B
+(redaction, retention archive, verifiable bulk export) and Scenario C (an internal
+account-access report, built on **unconfirmed assumptions**; no stakeholder has answered).
 
-The requirements and acceptance mapping are in
-[`docs/BUILD_REQUIREMENTS.txt`](./docs/BUILD_REQUIREMENTS.txt) and
-[`docs/requirements-mapping.md`](./docs/requirements-mapping.md).
-Scenario C remains provisional; see
-[`docs/scenario-c.md`](./docs/scenario-c.md). Dependency pins and their sources
-are recorded in [`docs/dependency-versions.md`](./docs/dependency-versions.md).
+This is a prototype for engineer review. It is tamper-**evident**, not tamper-proof: it has no
+external witness, KMS or WORM storage, and redaction gives no physical-erasure guarantee. Nothing
+has been signed off; the attestation in [`docs/attestation-template.md`](./docs/attestation-template.md)
+is for the engineer to complete.
+
+Start with [`ENGINEERING_SUMMARY.md`](./ENGINEERING_SUMMARY.md), then:
+
+| Topic | Document |
+|---|---|
+| Architecture and trust boundaries | [`docs/architecture.md`](./docs/architecture.md) |
+| API, roles, errors, schemas | [`docs/api.md`](./docs/api.md) |
+| Windows/Unix setup, production, containers | [`docs/setup.md`](./docs/setup.md) |
+| Requirements and traceability | [`docs/requirements-mapping.md`](./docs/requirements-mapping.md) |
+| Scenario C questions and assumptions | [`docs/scenario-c.md`](./docs/scenario-c.md) |
+| Live-defense notes and extension rehearsal | [`docs/live-defense.md`](./docs/live-defense.md) |
+| Threat model, verification, redaction, archives, exports | [`docs/threat-model.md`](./docs/threat-model.md), [`docs/verification.md`](./docs/verification.md), [`docs/redaction.md`](./docs/redaction.md), [`docs/retention-archive.md`](./docs/retention-archive.md), [`docs/export-bundles.md`](./docs/export-bundles.md), [`docs/export-sets.md`](./docs/export-sets.md) |
+| AI use | [`AI_USAGE_LOG.md`](./AI_USAGE_LOG.md) |
+
+The requirements are in [`docs/BUILD_REQUIREMENTS.txt`](./docs/BUILD_REQUIREMENTS.txt). Dependency
+pins and their sources are in [`docs/dependency-versions.md`](./docs/dependency-versions.md).
 
 ## Repository layout
 
-- `java/` — Java 21 / Spring Boot 3 Maven skeleton.
-- `python/` — Python >=3.11 Starlette service in a `src/` layout.
-- `python/src/audit_log_service/verifier/` — reserved for the independent
-  offline verifier; verification logic is not implemented yet.
-- `docs/` — requirements, ADRs, security, and operations documentation.
-- `scripts/` — operational scripts; currently `synthetic_tamper.py`, a
-  synthetic-data-only tamper tool (see `docs/verification.md`).
-- `.github/workflows/` — CI for the two skeletons.
+- `java/` — Java 21 / Spring Boot 3 Maven service and tests.
+- `python/` — Python >=3.11 Starlette service in a `src/` layout and tests.
+- `python/src/audit_log_service/verifier/` — the independent offline verifier (no service imports).
+- `docs/` — requirements, ADRs, schemas, test vectors, security and operations documentation.
+- `scripts/` — `provision_keys.py`, `synthetic_tamper.py` (synthetic data only), `check_hygiene.py`,
+  `benchmark.py`, `demo.ps1` (run on Windows) and `demo.sh` (never executed).
+- `.github/workflows/` — CI (never run by a runner; see [`docs/quality-gates.md`](./docs/quality-gates.md)).
 
 The root-level `pom.xml` and `src/` are a pre-existing starter. They are kept
 unchanged and are not used by the new `java/` or `python/` builds.
 
-Signed small export bundles (`GET /audit/export`) and the Java offline bundle
-verifier CLI follow the normative small v1 contract in
-[`docs/export-bundles.md`](./docs/export-bundles.md) and the schemas in `docs/schemas/`.
-Export limits: `AUDIT_EXPORT_MAX_RECORDS` (default 1000) and `AUDIT_EXPORT_MAX_BYTES`
-(default 8 MiB).
-Large export sets and the Python verifier are not implemented yet.
+Exports: `GET /audit/export` returns one signed small v1 bundle (limits `AUDIT_EXPORT_MAX_RECORDS`,
+default 1000, and `AUDIT_EXPORT_MAX_BYTES`, default 8 MiB; larger selections get 422, never a
+truncated result). Larger selections use `POST /audit/export-sets`, which produces chunks and a
+signed manifest from one snapshot. Both are verified offline with a pinned key.
 
 Checkpoint key/configuration contracts and limits are documented in
 [`docs/configuration-and-signing.md`](./docs/configuration-and-signing.md).

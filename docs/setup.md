@@ -84,6 +84,40 @@ checks the UID and checks prod fails closed without keys.** Treat them as
 unverified until that job is green. Volume ownership: named volumes inherit
 UID 10001 from the image; for bind mounts `chown 10001` the directories.
 
+## Operations: exports, redaction cleanup, archives
+
+Examples use the dev admin key against a local service (use `curl.exe` in Windows PowerShell; replace the port for the other service).
+
+```sh
+# Small export: one signed bundle, or 422 EXPORT_LIMIT_EXCEEDED when over the limits
+curl -s -H "X-API-Key: dev-auditor-only" "http://127.0.0.1:8080/audit/export?actorId=alice" -o bundle.json
+curl -s http://127.0.0.1:8080/audit/public-key        # take the key from a source you trust, not from the bundle
+python -m audit_log_service.verifier --bundle bundle.json --pinned-key <base64>
+
+# Large export: create a set, poll until READY, download the manifest and chunks, verify the directory offline
+curl -s -X POST -H "X-API-Key: dev-auditor-only" "http://127.0.0.1:8080/audit/export-sets?actorId=alice"
+curl -s -H "X-API-Key: dev-auditor-only" http://127.0.0.1:8080/audit/export-sets/<id>
+python -m audit_log_service.verifier --manifest set-dir/manifest.json --pinned-key <base64>
+
+# Redaction cleanup: PENDING means the delete committed but the WAL truncate was busy
+curl -s -H "X-API-Key: dev-admin-only" http://127.0.0.1:8080/audit/admin/redaction-cleanups
+curl -s -X POST -H "X-API-Key: dev-admin-only" http://127.0.0.1:8080/audit/admin/redaction-cleanups/retry
+
+# Archive: dry run first; audit the archive files afterwards
+curl -s -X POST -H "X-API-Key: dev-admin-only" -H "Content-Type: application/json" -d '{"dryRun":true}' http://127.0.0.1:8080/audit/admin/archive
+curl -s -H "X-API-Key: dev-auditor-only" http://127.0.0.1:8080/audit/archive-audit
+```
+
+The export-set manifest verifier usage and exit codes are in [export-sets.md](./export-sets.md) and [python-verifier.md](./python-verifier.md).
+Cleanup of generated files: remove the `audit-data/` directory (database, keys, archives, exports) only for a throwaway dev ledger;
+never delete archive files referenced by a committed archive job.
+
+## Trust and privacy limits
+
+Read [threat-model.md](./threat-model.md) and [ENGINEERING_SUMMARY.md](../ENGINEERING_SUMMARY.md) before relying on this
+service. In short: tamper-evident only with surviving trusted checkpoints; no external witness, KMS or WORM; no physical-erasure
+guarantee after redaction or archiving; archived records leave normal query, export and reports; Scenario C rests on unconfirmed assumptions.
+
 ## Minimal offline verifier
 
 The base Python install is only the verifier and needs only `cryptography`:

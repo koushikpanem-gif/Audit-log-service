@@ -72,4 +72,5 @@ guarantee of physical erasure. It does not cover storage-device remnants, filesy
 backups, copies of the database file, earlier exports and bundles, or archive files. Payload
 shape, event IDs, hashes and the fact and time of redaction remain visible. Redaction of
 archived events is refused; the archive file is a separate copy and must be handled by its own
-procedure. The Python service does not implement redaction yet.
+procedure. The Python service implements the same behaviour (see
+[python-service.md](./python-service.md)).

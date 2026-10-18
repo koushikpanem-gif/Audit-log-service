@@ -1,8 +1,9 @@
 # Export bundles (small v1) and the Java offline verifier
 
 Status: small v1 bundles and the Java verifier (Action 10, aligned to the normative
-contract in the fix pass). Large export sets are a later action; until then selections
-over the configured limits are rejected explicitly with no partial output.
+contract in the fix pass). Selections over the configured limits are rejected explicitly
+with no partial output; larger selections use the export-set protocol in
+[export-sets.md](./export-sets.md).
 
 ## Schemas
 
