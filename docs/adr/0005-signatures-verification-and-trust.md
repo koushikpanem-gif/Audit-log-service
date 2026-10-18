@@ -12,6 +12,22 @@
   and retain at most 100 earliest deterministic diagnostics while counting all
   violations. Verifiers require an out-of-band pinned key by default;
   self-asserted mode is explicitly untrusted.
+- **Key-pair validation:** Both implementations load the private key as PKCS#8
+  PEM, accept only Ed25519, decode the public key as strict standard Base64 of
+  exactly 32 raw bytes, and prove the pair matches before signing. Java wraps
+  raw public bytes in the Ed25519 SubjectPublicKeyInfo prefix only when passing
+  them to the JDK provider; that DER encoding is never exposed as the protocol
+  public key.
+- **Key-file lifecycle:** Development may create `signing-private.pem` and
+  `signing-public.b64` exclusively when neither exists. POSIX files are created
+  with owner-only read/write permissions; Windows applies a current-account
+  `icacls` ACL before writing key bytes. A partial pair is an error, never an
+  invitation to replace a key. Production accepts only an existing valid pair
+  and a valid API-key file. See [configuration and signing](../configuration-and-signing.md)
+  for environment names and file format.
+- **Fixture:** The shared `ed25519-checkpoint-v1.json` test vector contains a
+  fixed private key explicitly marked TEST ONLY. It exists solely to prove
+  Java/Python signature-byte compatibility and must never be used operationally.
 - **Consequences:** Report all specified violation types and counters.
   Authorization events must themselves validate before they authorize
   redaction/archive. No claim is made against full rewrite, uncheckpointed

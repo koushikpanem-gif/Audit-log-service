@@ -1,0 +1,14 @@
+{
+  "fixtureLabel": "TEST ONLY key material; never use outside protocol tests",
+  "message": {
+    "type": "audit-checkpoint/v1",
+    "ledgerId": "fixture-ledger",
+    "seq": 7,
+    "chainHash": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "createdAt": "2025-01-02T03:04:05.123456Z"
+  },
+  "privateKeyPkcs8Pem": "-----BEGIN PRIVATE KEY-----\nMC4CAQAwBQYDK2VwBCIEIAABAgMEBQYHCAkKCwwNDg8QERITFBUWFxgZGhscHR4f\n-----END PRIVATE KEY-----\n",
+  "publicKeyBase64": "A6EHv/POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg=",
+  "keyId": "56475aa75463474c",
+  "signatureBase64": "XGU8gsB7LXCEENgdOv/wciidSkrnhkOe9W95ZAZEnoKs3C6T+fUpLMKyKQassMBeHtLvhwCnGqWvgy0Y/GklDg=="
+}

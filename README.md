@@ -1,9 +1,10 @@
 # Audit Log Service
 
-This repository is being scaffolded in numbered actions. Action 02 adds
-independent Java and Python service skeletons, health endpoints, basic checks,
-and local development commands. Audit append/query, cryptography, storage,
-redaction, export, and compliance-report behavior are not implemented yet.
+This repository is being implemented in numbered actions. The Java and Python
+scaffolds include health endpoints, strict JCS/v1 hashing, salted payload
+commitments, and Action 05's Ed25519 checkpoint signer/configuration helpers.
+Ledger append/query, persistent checkpointing, redaction, export, verification,
+and compliance-report behavior remain pending later actions.
 
 The requirements and acceptance mapping are in
 [`docs/BUILD_REQUIREMENTS.txt`](./docs/BUILD_REQUIREMENTS.txt) and
@@ -24,6 +25,10 @@ are recorded in [`docs/dependency-versions.md`](./docs/dependency-versions.md).
 
 The root-level `pom.xml` and `src/` are a pre-existing starter. They are kept
 unchanged and are not used by the new `java/` or `python/` builds.
+
+Checkpoint key/configuration contracts and limits are documented in
+[`docs/configuration-and-signing.md`](./docs/configuration-and-signing.md).
+Do not use the clearly marked test-only Ed25519 fixture outside tests.
 
 ## Local checks
 

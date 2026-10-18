@@ -64,3 +64,23 @@ Actual AI changes and validation only; not engineer approval.
   pointers, invalid indices/escapes, redaction, and repeated random writes.
 - **Git:** Authorized local commit message: `feat: implement salted payload
   commitments`. No push or engineer review claimed.
+
+## Action 05 — Ed25519 signing and configuration
+
+- **Changed:** Added matching Java/Python Ed25519 checkpoint signers using JCS,
+  raw 32-byte public keys, key IDs, strict PKCS#8/key-pair validation, and
+  exclusive dev-only key creation with POSIX owner permissions or Windows
+  current-user ACLs. Added environment validation, finite retention bounded to
+  500,000 days, positive size/count limits, production API-key-file validation,
+  and a shared, explicitly test-only signature vector. Updated signing/
+  configuration ADRs, README, key-artifact ignore rules, and setup docs. The
+  health-only app scaffolds do not yet load these helpers; ledger lifecycle
+  integration remains for a later action.
+- **Validation:** `mvn -B -f java\pom.xml verify` passed (26 tests). In the
+  Python venv (Python 3.15.0; Python 3.11 unavailable), `ruff check .`,
+  `ruff format --check .`, `mypy src`, pytest (76 passed), and `pip check`
+  passed. Shared fixed-key signing bytes matched in Java and Python; dev
+  creation/reuse and production refusal were exercised on Windows. Remote CI
+  and production integration were not run.
+- **Git:** Authorized commit message: `feat: implement Ed25519 signing and
+  configuration`. No push or engineer sign-off claimed.

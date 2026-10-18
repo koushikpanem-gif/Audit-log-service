@@ -15,4 +15,8 @@
 - **Consequences:** Local development may create a restrictive key, but
   production requires an existing valid private key and API-key file. Key
   material is never silently overwritten; sample credentials must be clearly
-  development-only.
+  development-only. API-key configuration is a principal-keyed JSON object
+  containing only a lowercase SHA-256 `keyHash` and a non-empty array of
+  distinct recognized `roles` (`writer`, `reader`, `auditor`, `admin`); raw
+  API keys are not accepted in the file. Runtime names and bounds are listed
+  in [configuration and signing](../configuration-and-signing.md).

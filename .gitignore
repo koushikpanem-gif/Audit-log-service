@@ -37,6 +37,7 @@ build/
 .env.*
 !.env.example
 secrets/
+audit-data/
 *.pem
 *.key
 *.p12
