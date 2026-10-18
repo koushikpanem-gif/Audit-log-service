@@ -2,6 +2,8 @@ package com.auditlog.config;
 
 import com.auditlog.core.crypto.CheckpointSigner;
 import com.auditlog.service.AppendEventService;
+import com.auditlog.service.ArchiveAuditService;
+import com.auditlog.service.ArchiveService;
 import com.auditlog.service.EventQueryService;
 import com.auditlog.service.ExportBundleService;
 import com.auditlog.service.ExportSetService;
@@ -50,6 +52,9 @@ public class AuditWebConfiguration {
             "AUDIT_EXPORT_SET_TTL_SECONDS",
             "AUDIT_CLEANUP_MAX_ATTEMPTS",
             "AUDIT_CLEANUP_BUSY_TIMEOUT_MS",
+            "AUDIT_ARCHIVE_DIR",
+            "AUDIT_ARCHIVE_MAX_RECORDS",
+            "AUDIT_ARCHIVE_MAX_BYTES",
             "AUDIT_SIGNING_PRIVATE_KEY",
             "AUDIT_SIGNING_PUBLIC_KEY",
             "AUDIT_API_KEYS_FILE"
@@ -147,6 +152,27 @@ public class AuditWebConfiguration {
             AppendEventService appendService,
             RedactionCleanupService cleanupService) {
         return new RedactionService(repository, configuration, appendService, cleanupService);
+    }
+
+    @Bean
+    public ArchiveService archiveService(
+            JdbcAuditRepository repository,
+            AuditConfiguration configuration,
+            CheckpointSigner signer,
+            AppendEventService appendService,
+            Clock auditClock) throws SQLException {
+        ArchiveService service = new ArchiveService(repository, configuration, signer, appendService, auditClock);
+        service.reconcile();
+        return service;
+    }
+
+    @Bean
+    public ArchiveAuditService archiveAuditService(
+            JdbcAuditRepository repository,
+            AuditConfiguration configuration,
+            CheckpointSigner signer,
+            Clock auditClock) {
+        return new ArchiveAuditService(repository, configuration, signer, auditClock);
     }
 
     @Bean

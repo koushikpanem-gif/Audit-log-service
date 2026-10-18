@@ -33,7 +33,7 @@ class JdbcAuditRepositoryTests {
         JdbcAuditRepository repository = new JdbcAuditRepository(database, "ledger-one");
         JdbcAuditRepository reopened = new JdbcAuditRepository(database, "ledger-one");
 
-        assertEquals(2, pragmaInt(database, "user_version"));
+        assertEquals(3, pragmaInt(database, "user_version"));
         assertEquals("ledger-one", reopened.readSnapshot(connection -> {
             try (var statement = connection.createStatement();
                     var result = statement.executeQuery(
@@ -43,6 +43,7 @@ class JdbcAuditRepositoryTests {
             }
         }));
         assertEquals(List.of(
+                "archive_jobs",
                 "audit_events",
                 "checkpoints",
                 "ledger_meta",
@@ -61,7 +62,7 @@ class JdbcAuditRepositoryTests {
     void refusesUnknownAndUnversionedSchemas() throws Exception {
         Path unknownVersionDb = tempDirectory.resolve("unknown-version.db");
         new JdbcAuditRepository(unknownVersionDb, "ledger");
-        execute(unknownVersionDb, "PRAGMA user_version = 3");
+        execute(unknownVersionDb, "PRAGMA user_version = 4");
         assertThrows(SQLException.class, () -> new JdbcAuditRepository(unknownVersionDb, "ledger"));
 
         Path unversionedDb = tempDirectory.resolve("unversioned.db");

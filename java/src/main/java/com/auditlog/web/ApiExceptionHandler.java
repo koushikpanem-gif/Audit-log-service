@@ -1,5 +1,6 @@
 package com.auditlog.web;
 
+import com.auditlog.service.ArchiveService;
 import com.auditlog.service.ExportBundleService;
 import com.auditlog.service.ExportSetService;
 import com.auditlog.store.StorageBusyException;
@@ -39,6 +40,16 @@ public class ApiExceptionHandler {
             case NOT_READY -> 409;
             case GONE -> 410;
             case BUSY -> 429;
+            case FAILED -> 500;
+        };
+        return error(status, exception.code(), exception.getMessage());
+    }
+
+    @ExceptionHandler(ArchiveService.ArchiveException.class)
+    public ResponseEntity<ApiErrorResponse> archive(ArchiveService.ArchiveException exception) {
+        int status = switch (exception.kind()) {
+            case CONFLICT -> 409;
+            case INVALID -> 422;
             case FAILED -> 500;
         };
         return error(status, exception.code(), exception.getMessage());

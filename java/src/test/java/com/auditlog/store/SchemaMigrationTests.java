@@ -17,7 +17,7 @@ class SchemaMigrationTests {
     Path directory;
 
     @Test
-    void version1DatabaseMigratesToVersion2PreservingLedgerBindingAndRows() throws Exception {
+    void version1DatabaseMigratesToVersion3PreservingLedgerBindingAndRows() throws Exception {
         Path database = directory.resolve("v1.db");
         String schema = new String(
                 getClass().getResourceAsStream("/db/schema-v1.sql").readAllBytes(), StandardCharsets.UTF_8);
@@ -36,10 +36,12 @@ class SchemaMigrationTests {
 
         try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + database);
                 Statement statement = connection.createStatement()) {
-            assertEquals(2, single(statement, "PRAGMA user_version"));
-            assertEquals(2, single(statement, "SELECT schema_version FROM ledger_meta"));
+            assertEquals(3, single(statement, "PRAGMA user_version"));
+            assertEquals(3, single(statement, "SELECT schema_version FROM ledger_meta"));
             assertEquals(1, single(statement,
                     "SELECT COUNT(*) FROM sqlite_master WHERE name = 'redaction_cleanup'"));
+            assertEquals(1, single(statement,
+                    "SELECT COUNT(*) FROM sqlite_master WHERE name = 'archive_jobs'"));
         }
 
         new JdbcAuditRepository(database, "legacy");

@@ -304,3 +304,23 @@ Actual AI changes and validation only; not engineer approval.
   redaction test; no physical-erasure claim; `bandit`, `pip-audit`, `pip check` not re-run;
   JaCoCo thresholds ran as configured, none changed.
 - **Git:** committed locally as one commit; no engineer sign-off claimed.
+
+## Action 13: durable retention archives
+
+- **Scope:** Java only. Schema v3 (`archive_jobs`), `ArchiveService` (dryRun, bounded oldest-prefix batch,
+  job state machine, forced signed file publication before clearing live data, skeleton, `RECORDS_ARCHIVED`,
+  reconcile/cleanup), `ArchiveAuditService`, admin/auditor endpoints, archive config. Documented in
+  `docs/retention-archive.md`.
+- **AI decisions:** Accepted: file is forced and atomically moved inside the DB write transaction before live
+  fields are cleared, so a crash or failure leaves plaintext intact. Assumptions for engineer review: retention
+  rounded up (ceil) to an integer for the event field; in-process lock (single-process); orphans reported, never
+  deleted; best-effort WAL checkpoint and directory fsync (not on Windows). Modified: a test showed the
+  `AFTER_JOB_RECORDED` hook ran outside the failure handler, leaving the job PREPARING on an orderly failure; I
+  moved it inside. Rewrote a convoluted cutoff assertion and a test that pointed at the wrong seq.
+- **Validation:** `mvn -B -f java\pom.xml verify` passed (175 tests: `ArchiveServiceTests` 25, `ArchiveHttpTests`
+  3, migration/repository tests updated). Python checks run again (code unchanged); see result in the commit
+  report.
+- **Not done / blocked:** no Python archive implementation or cross-language checks; no multi-process tests; no
+  v2->v3 dedicated migration test or archive config unit tests; `bandit`/`pip-audit` not re-run; a missing
+  archive file is reported only by the archive audit; no human sign-off.
+- **Git:** one local commit, not pushed.

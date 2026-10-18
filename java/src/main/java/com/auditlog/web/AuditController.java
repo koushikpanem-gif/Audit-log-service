@@ -3,7 +3,10 @@ package com.auditlog.web;
 import com.auditlog.core.crypto.CheckpointSigner;
 import com.auditlog.domain.AppendEventRequest;
 import com.auditlog.domain.BundleSelection;
+import com.auditlog.domain.ArchiveRequest;
 import com.auditlog.domain.RedactionRequest;
+import com.auditlog.service.ArchiveAuditService;
+import com.auditlog.service.ArchiveService;
 import com.auditlog.service.RedactionCleanupService;
 import com.auditlog.service.RedactionService;
 import com.auditlog.service.AppendedEvent;
@@ -51,6 +54,8 @@ public class AuditController {
     private final ExportSetService exportSetService;
     private final RedactionService redactionService;
     private final RedactionCleanupService cleanupService;
+    private final ArchiveService archiveService;
+    private final ArchiveAuditService archiveAuditService;
 
     public AuditController(
             AppendEventService appendService,
@@ -60,7 +65,11 @@ public class AuditController {
             ExportBundleService exportService,
             ExportSetService exportSetService,
             RedactionService redactionService,
-            RedactionCleanupService cleanupService) {
+            RedactionCleanupService cleanupService,
+            ArchiveService archiveService,
+            ArchiveAuditService archiveAuditService) {
+        this.archiveService = archiveService;
+        this.archiveAuditService = archiveAuditService;
         this.redactionService = redactionService;
         this.cleanupService = cleanupService;
         this.appendService = appendService;
@@ -169,6 +178,39 @@ public class AuditController {
                 principal(httpRequest).name());
         return ResponseEntity.created(URI.create("/audit/events/" + result.redactionEventId()))
                 .body(result);
+    }
+
+    @PostMapping("/audit/admin/archive")
+    @Operation(summary = "Archive the expired oldest live prefix (admin); dryRun changes nothing")
+    @SecurityRequirement(name = "apiKeyAuth")
+    public ArchiveService.ArchiveResult archive(
+            @RequestBody ArchiveRequest request,
+            HttpServletRequest httpRequest) throws SQLException {
+        if (request == null || request.dryRun() == null) {
+            throw new IllegalArgumentException("dryRun must be specified as true or false");
+        }
+        return archiveService.archive(request.dryRun(), principal(httpRequest).name());
+    }
+
+    @GetMapping("/audit/admin/archive-jobs")
+    @Operation(summary = "Archive job status and orphan files (admin)")
+    @SecurityRequirement(name = "apiKeyAuth")
+    public Map<String, Object> archiveJobs() throws SQLException {
+        return archiveService.status();
+    }
+
+    @PostMapping("/audit/admin/archive-jobs/reconcile")
+    @Operation(summary = "Resolve interrupted archive jobs and clean proven-failed files (admin)")
+    @SecurityRequirement(name = "apiKeyAuth")
+    public Map<String, Object> reconcileArchives() throws SQLException {
+        return archiveService.reconcile();
+    }
+
+    @GetMapping("/audit/archive-audit")
+    @Operation(summary = "Audit archive files against signed bundles and the ledger skeleton (auditor)")
+    @SecurityRequirement(name = "apiKeyAuth")
+    public Map<String, Object> archiveAudit() throws SQLException {
+        return archiveAuditService.audit();
     }
 
     @GetMapping("/audit/admin/redaction-cleanups")

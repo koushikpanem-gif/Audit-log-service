@@ -15,14 +15,16 @@ import java.util.Objects;
 
 public final class JdbcAuditRepository implements AuditRepository {
 
-    public static final int SCHEMA_VERSION = 2;
+    public static final int SCHEMA_VERSION = 3;
     private static final String SCHEMA_RESOURCE = "/db/schema-v1.sql";
     private static final String MIGRATION_V1_TO_V2_RESOURCE = "/db/migration-v1-to-v2.sql";
+    private static final String MIGRATION_V2_TO_V3_RESOURCE = "/db/migration-v2-to-v3.sql";
     private final Path databasePath;
     private final String ledgerId;
     private final String jdbcUrl;
     private final String schemaSql;
     private final String migrationV2Sql;
+    private final String migrationV3Sql;
 
     public JdbcAuditRepository(Path databasePath, String ledgerId) throws SQLException {
         this.databasePath = Objects.requireNonNull(databasePath, "databasePath")
@@ -35,6 +37,7 @@ public final class JdbcAuditRepository implements AuditRepository {
         this.jdbcUrl = "jdbc:sqlite:" + this.databasePath;
         this.schemaSql = loadResource(SCHEMA_RESOURCE);
         this.migrationV2Sql = loadResource(MIGRATION_V1_TO_V2_RESOURCE);
+        this.migrationV3Sql = loadResource(MIGRATION_V2_TO_V3_RESOURCE);
         initialize();
     }
 
@@ -99,6 +102,14 @@ public final class JdbcAuditRepository implements AuditRepository {
                 if (version == 1) {
                     verifyLedgerBinding(connection, 1);
                     migrateToV2(connection, statement);
+                    migrateToV3(statement);
+                    verifyLedgerBinding(connection, SCHEMA_VERSION);
+                    statement.execute("COMMIT");
+                    return;
+                }
+                if (version == 2) {
+                    verifyLedgerBinding(connection, 2);
+                    migrateToV3(statement);
                     verifyLedgerBinding(connection, SCHEMA_VERSION);
                     statement.execute("COMMIT");
                     return;
@@ -119,6 +130,7 @@ public final class JdbcAuditRepository implements AuditRepository {
                 }
                 statement.execute("PRAGMA user_version = 1");
                 migrateToV2(connection, statement);
+                migrateToV3(statement);
                 verifyLedgerBinding(connection, SCHEMA_VERSION);
                 statement.execute("COMMIT");
             } catch (SQLException | RuntimeException | Error failure) {
@@ -209,6 +221,13 @@ public final class JdbcAuditRepository implements AuditRepository {
             statement.execute(sql);
         }
         statement.execute("PRAGMA user_version = 2");
+    }
+
+    private void migrateToV3(Statement statement) throws SQLException {
+        for (String sql : splitSchemaStatements(migrationV3Sql)) {
+            statement.execute(sql);
+        }
+        statement.execute("PRAGMA user_version = 3");
     }
 
     private void verifyLedgerBinding(Connection connection, int expectedVersion) throws SQLException {

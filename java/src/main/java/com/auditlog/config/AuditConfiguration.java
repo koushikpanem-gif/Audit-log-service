@@ -31,6 +31,9 @@ public record AuditConfiguration(
         long exportSetTtlSeconds,
         int cleanupMaxAttempts,
         int cleanupBusyTimeoutMillis,
+        Path archiveDirectory,
+        int archiveMaxRecords,
+        int archiveMaxBytes,
         Path signingPrivateKey,
         Path signingPublicKey,
         Path apiKeysFile) {
@@ -58,6 +61,11 @@ public record AuditConfiguration(
     public static final int MAX_CLEANUP_MAX_ATTEMPTS = 10;
     public static final int DEFAULT_CLEANUP_BUSY_TIMEOUT_MILLIS = 1000;
     public static final int MAX_CLEANUP_BUSY_TIMEOUT_MILLIS = 30_000;
+
+    /** Retention archive batch bounds; the bundle must stay readable by the default verifier. */
+    public static final int DEFAULT_ARCHIVE_MAX_RECORDS = 1000;
+    public static final int DEFAULT_ARCHIVE_MAX_BYTES = 8 * 1024 * 1024;
+    public static final int MIN_ARCHIVE_MAX_BYTES = 64 * 1024;
 
     private static final BigDecimal MAX_RETENTION_DAYS = BigDecimal.valueOf(500_000);
     private static final Pattern SHA256 = Pattern.compile("[0-9a-f]{64}");
@@ -152,6 +160,25 @@ public record AuditConfiguration(
             Path parent = databasePath.toAbsolutePath().getParent();
             exportDirectory = (parent == null ? Path.of("") : parent).resolve("exports");
         }
+        int archiveMaxRecords = positiveInt(
+                values, "AUDIT_ARCHIVE_MAX_RECORDS", DEFAULT_ARCHIVE_MAX_RECORDS);
+        int archiveMaxBytes = positiveInt(values, "AUDIT_ARCHIVE_MAX_BYTES", DEFAULT_ARCHIVE_MAX_BYTES);
+        bounded("AUDIT_ARCHIVE_MAX_RECORDS", archiveMaxRecords, MAX_EXPORT_RECORDS);
+        bounded("AUDIT_ARCHIVE_MAX_BYTES", archiveMaxBytes, MAX_EXPORT_BYTES);
+        if (archiveMaxBytes < MIN_ARCHIVE_MAX_BYTES) {
+            throw new IllegalArgumentException("AUDIT_ARCHIVE_MAX_BYTES must be at least 65536");
+        }
+        String archiveDirValue = values.get("AUDIT_ARCHIVE_DIR");
+        if (archiveDirValue != null && archiveDirValue.isBlank()) {
+            throw new IllegalArgumentException("AUDIT_ARCHIVE_DIR must be non-empty when specified");
+        }
+        Path archiveDirectory;
+        if (archiveDirValue != null) {
+            archiveDirectory = Path.of(archiveDirValue);
+        } else {
+            Path parent = databasePath.toAbsolutePath().getParent();
+            archiveDirectory = (parent == null ? Path.of("") : parent).resolve("archives");
+        }
         return new AuditConfiguration(
                 environment,
                 ledgerId,
@@ -171,6 +198,9 @@ public record AuditConfiguration(
                 setTtl,
                 cleanupMaxAttempts,
                 cleanupBusyTimeout,
+                archiveDirectory,
+                archiveMaxRecords,
+                archiveMaxBytes,
                 Path.of(get(values, "AUDIT_SIGNING_PRIVATE_KEY", "audit-data/signing-private.pem")),
                 Path.of(get(values, "AUDIT_SIGNING_PUBLIC_KEY", "audit-data/signing-public.b64")),
                 apiKeys);
