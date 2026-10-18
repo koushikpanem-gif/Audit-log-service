@@ -30,10 +30,26 @@ startup and via `POST /audit/admin/archive-jobs/reconcile`. Pattern-matching fil
 reported as orphans and never deleted. `GET /audit/admin/archive-jobs` shows status.
 
 ## Audit
-`GET /audit/archive-audit` (auditor) checks every committed archive (job table plus live archive events,
-cumulative, including archive events that were themselves archived): safe name, size, SHA-256, signed bundle
-with the pinned key, metadata, and each record against the skeleton. A missing file is
-`ARCHIVE_FILE_MISSING`, distinct from chain violations; `/audit/verify` does not read archive files.
+`GET /audit/archive-audit` (auditor) and the offline CLI check every committed archive (job table plus live
+archive events, cumulative, including archive events that were themselves archived): safe name (a symlink or
+directory in place of the file is `FILE_NAME_UNSAFE`), bounded read (at most `archiveMaxBytes`), size,
+SHA-256, signed bundle with the **pinned** key, bundle ledger id / signer key id / head checkpoint seq,
+metadata, the authorizing `RECORDS_ARCHIVED` event (must follow the range and exist; live ones must validate),
+and each record against the skeleton (eventId, timestamp, hashVersion, three hashes, `archived=1`).
+A global coverage check requires the archive ranges to be contiguous from seq 1 and to cover exactly the
+rows marked archived, so an archived row with no evidence fails the audit. A missing or unreadable file is
+reported as `ARCHIVE_FILE_MISSING` / `ARCHIVE_FILE_UNREADABLE` (counted in `unavailableArchiveCount`),
+distinct from chain violations; `/audit/verify` does not read archive files.
+
+### CLI
+```
+java -cp target\classes;<deps> com.auditlog.service.ArchiveAuditCli --db ledger.db --ledger-id ID
+     --archive-dir DIR (--pinned-key-file key.b64 | --pinned-key BASE64) [--max-bytes N] [--max-records N]
+```
+Prints the JSON report. Exit 0 intact, 1 archive evidence failed, 2 input/usage error. A pinned key is
+mandatory (no self-asserted mode). The CLI opens the DB through the normal repository, which checks the ledger
+binding and schema version and migrates an older schema; use a copy if that is unwanted. The CLI never deletes
+or writes archive files.
 
 ## Limits and assumptions
 - Archive files are plaintext copies: redaction does not reach them, and normal query/export exclude

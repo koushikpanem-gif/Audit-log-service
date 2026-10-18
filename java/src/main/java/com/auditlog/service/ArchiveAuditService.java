@@ -38,8 +38,12 @@ public final class ArchiveAuditService {
     private static final int MAX_ENTRIES = 10_000;
 
     private final JdbcAuditRepository repository;
-    private final AuditConfiguration configuration;
-    private final CheckpointSigner signer;
+    private final String ledgerId;
+    private final Path archiveDirectory;
+    private final int maxBytes;
+    private final int maxRecords;
+    private final String pinnedPublicKey;
+    private final String keyId;
     private final Clock clock;
 
     public ArchiveAuditService(
@@ -47,9 +51,28 @@ public final class ArchiveAuditService {
             AuditConfiguration configuration,
             CheckpointSigner signer,
             Clock clock) {
+        this(repository, configuration.ledgerId(), configuration.archiveDirectory(),
+                configuration.archiveMaxBytes(), configuration.archiveMaxRecords(),
+                Objects.requireNonNull(signer, "signer").publicKeyBase64(), clock);
+    }
+
+    /** Standalone form: the caller supplies an out-of-band pinned raw Ed25519 key (Base64). */
+    public ArchiveAuditService(
+            JdbcAuditRepository repository,
+            String ledgerId,
+            Path archiveDirectory,
+            int maxBytes,
+            int maxRecords,
+            String pinnedPublicKeyBase64,
+            Clock clock) {
         this.repository = Objects.requireNonNull(repository, "repository");
-        this.configuration = Objects.requireNonNull(configuration, "configuration");
-        this.signer = Objects.requireNonNull(signer, "signer");
+        this.ledgerId = Objects.requireNonNull(ledgerId, "ledgerId");
+        this.archiveDirectory = Objects.requireNonNull(archiveDirectory, "archiveDirectory");
+        this.maxBytes = maxBytes;
+        this.maxRecords = maxRecords;
+        this.pinnedPublicKey = Objects.requireNonNull(pinnedPublicKeyBase64, "pinnedPublicKey");
+        byte[] raw = java.util.Base64.getDecoder().decode(pinnedPublicKeyBase64);
+        this.keyId = CheckpointSigner.keyIdFor(raw);
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
@@ -57,6 +80,7 @@ public final class ArchiveAuditService {
         List<Map<String, Object>> entries = repository.readSnapshot(this::collectEntries);
         long failures = 0;
         long missing = 0;
+        long unavailable = 0;
         List<Map<String, Object>> results = new ArrayList<>();
         for (Map<String, Object> entry : entries) {
             Map<String, Object> result = repository.readSnapshot(connection -> check(connection, entry));
@@ -67,15 +91,22 @@ public final class ArchiveAuditService {
             if ("ARCHIVE_FILE_MISSING".equals(status)) {
                 missing++;
             }
+            if ("ARCHIVE_FILE_MISSING".equals(status) || "ARCHIVE_FILE_UNREADABLE".equals(status)) {
+                unavailable++;
+            }
             results.add(result);
         }
+        Map<String, Object> coverage = repository.readSnapshot(connection -> coverage(connection, entries));
+        boolean coverageOk = Boolean.TRUE.equals(coverage.get("complete"));
         Map<String, Object> report = new LinkedHashMap<>();
         report.put("auditedAt", ArchiveService.micros(clock.instant()));
         report.put("archiveCount", results.size());
-        report.put("intact", failures == 0);
+        report.put("intact", failures == 0 && coverageOk);
         report.put("failedArchiveCount", failures);
         report.put("missingArchiveCount", missing);
-        report.put("keyId", signer.keyId());
+        report.put("unavailableArchiveCount", unavailable);
+        report.put("keyId", keyId);
+        report.put("coverage", coverage);
         report.put("archives", results);
         report.put("scope", "Archive files only. The ledger chain is verified separately by GET /audit/verify; "
                 + "a missing archive file is reported here and is not a chain break.");
@@ -207,16 +238,22 @@ public final class ArchiveAuditService {
                 || !(entry.get("archiveSha256") instanceof String expectedDigest)) {
             return "FILE_NAME_UNSAFE";
         }
-        Path file = configuration.archiveDirectory().resolve(fileName);
-        if (!Files.isRegularFile(file)) {
-            return "ARCHIVE_FILE_MISSING";
+        Path file = archiveDirectory.resolve(fileName);
+        if (!Files.isRegularFile(file, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+            return Files.exists(file, java.nio.file.LinkOption.NOFOLLOW_LINKS)
+                    ? "FILE_NAME_UNSAFE" : "ARCHIVE_FILE_MISSING";
         }
         byte[] bytes;
         try {
-            if (Files.size(file) > configuration.archiveMaxBytes()) {
+            if (Files.size(file) > maxBytes) {
                 return "DIGEST_MISMATCH";
             }
-            bytes = Files.readAllBytes(file);
+            try (java.io.InputStream stream = Files.newInputStream(file)) {
+                bytes = stream.readNBytes(maxBytes + 1);
+            }
+            if (bytes.length > maxBytes) {
+                return "DIGEST_MISMATCH";
+            }
         } catch (IOException exception) {
             return "ARCHIVE_FILE_UNREADABLE";
         }
@@ -226,8 +263,7 @@ public final class ArchiveAuditService {
             return "DIGEST_MISMATCH";
         }
         BundleVerifier.Result verified = BundleVerifier.verify(bytes,
-                BundleVerifier.Options.pinned(signer.publicKeyBase64())
-                        .withLimits(configuration.archiveMaxBytes(), configuration.archiveMaxRecords()));
+                BundleVerifier.Options.pinned(pinnedPublicKey).withLimits(maxBytes, maxRecords));
         if (verified.status() != BundleVerifier.Status.VERIFIED) {
             List<String> codes = new ArrayList<>();
             for (BundleDiagnostic diagnostic : verified.diagnostics()) {
@@ -250,7 +286,79 @@ public final class ArchiveAuditService {
                 || !String.valueOf(count.longValue()).equals(String.valueOf(bundle.get("recordCount")))) {
             return "METADATA_MISMATCH";
         }
+        if (!ledgerId.equals(bundle.get("ledgerId"))
+                || !(bundle.get("signer") instanceof Map<?, ?> signerInfo)
+                || !keyId.equals(signerInfo.get("keyId"))
+                || !(bundle.get("headCheckpoint") instanceof Map<?, ?> head)
+                || !String.valueOf(to.longValue()).equals(String.valueOf(head.get("seq")))) {
+            result.put("detail", "Bundle ledger, signer or head checkpoint does not match this ledger");
+            return "METADATA_MISMATCH";
+        }
+        String eventStatus = checkArchiveEvent(connection, entry, to.longValue());
+        if (eventStatus != null) {
+            result.put("detail", eventStatus);
+            return "METADATA_MISMATCH";
+        }
         return compareSkeleton(connection, bundle, from.longValue(), to.longValue(), count.longValue());
+    }
+
+    /**
+     * The authorizing RECORDS_ARCHIVED event must come after the archived range and exist. When it
+     * is live it must have been found and validated as a service event; when it was itself
+     * archived, a later archive must cover it (checked by the coverage test).
+     */
+    private static String checkArchiveEvent(Connection connection, Map<String, Object> entry, long to)
+            throws SQLException {
+        if (!(entry.get("eventSeq") instanceof Number eventSeq) || eventSeq.longValue() <= to) {
+            return "Authorizing archive event does not follow the archived range";
+        }
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT archived FROM audit_events WHERE seq = ?")) {
+            statement.setLong(1, eventSeq.longValue());
+            try (ResultSet row = statement.executeQuery()) {
+                if (!row.next()) {
+                    return "Authorizing archive event is not in the ledger";
+                }
+                if (row.getInt(1) == 0 && !Boolean.TRUE.equals(entry.get("ledgerEventPresent"))) {
+                    return "Live archive event is missing or unreadable";
+                }
+            }
+        }
+        return null;
+    }
+
+    private static Map<String, Object> coverage(Connection connection, List<Map<String, Object>> entries)
+            throws SQLException {
+        long archivedRows;
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT COUNT(*) FROM audit_events WHERE archived = 1");
+                ResultSet row = statement.executeQuery()) {
+            row.next();
+            archivedRows = row.getLong(1);
+        }
+        List<long[]> ranges = new ArrayList<>();
+        for (Map<String, Object> entry : entries) {
+            if (entry.get("fromSeq") instanceof Number from && entry.get("toSeq") instanceof Number to) {
+                ranges.add(new long[] {from.longValue(), to.longValue()});
+            }
+        }
+        ranges.sort((left, right) -> Long.compare(left[0], right[0]));
+        boolean continuous = true;
+        long covered = 0;
+        long expectedFrom = 1;
+        for (long[] range : ranges) {
+            if (range[0] != expectedFrom || range[1] < range[0]) {
+                continuous = false;
+            }
+            covered += Math.max(0, range[1] - range[0] + 1);
+            expectedFrom = range[1] + 1;
+        }
+        Map<String, Object> coverage = new LinkedHashMap<>();
+        coverage.put("archivedRecordsInLedger", archivedRows);
+        coverage.put("recordsCoveredByArchives", covered);
+        coverage.put("rangesContiguousFromSeq1", continuous);
+        coverage.put("complete", continuous && covered == archivedRows);
+        return coverage;
     }
 
     private static String compareSkeleton(

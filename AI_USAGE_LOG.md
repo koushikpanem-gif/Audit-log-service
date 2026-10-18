@@ -324,3 +324,24 @@ Actual AI changes and validation only; not engineer approval.
   v2->v3 dedicated migration test or archive config unit tests; `bandit`/`pip-audit` not re-run; a missing
   archive file is reported only by the archive audit; no human sign-off.
 - **Git:** one local commit, not pushed.
+
+## Action 14: archived evidence audit
+
+- **Scope:** Java only. Extended `ArchiveAuditService` (standalone constructor with out-of-band pinned key;
+  bundle ledger/signer/head-seq checks; authorizing-event checks; bounded, no-symlink file reads; global range
+  contiguity/coverage check; `unavailableArchiveCount`) and added `ArchiveAuditCli` (exit 0/1/2). Documented in
+  `docs/retention-archive.md`.
+- **AI decisions:** Accepted: reuse the Action 13 audit rather than a second implementation. Assumptions for
+  engineer review: the CLI opens the DB through the normal repository (which may migrate an older schema); a
+  pinned key is mandatory (no self-asserted mode); the coverage check treats any archived row not inside a
+  committed archive range as a failure. Modified: two of my first-draft tests were wrong (a ledger-id mismatch
+  correctly yields METADATA_MISMATCH, and a raw tamper had to satisfy the archived-row CHECK constraint); I fixed
+  the tests, not the product code. Not tested: symlinks (needs Windows privileges), so only a directory in place
+  of the file is covered.
+- **Validation:** `mvn -B -f java\pom.xml verify` passed (188 tests; 13 new in `ArchiveAuditTests` covering
+  missing/substituted/corrupt/oversized files, wrong key, wrong ledger, changed eventId/timestamp/hashVersion,
+  repeat archives with an archived authorization event, coverage break, CLI exit codes). Python code unchanged,
+  checks not re-run for this action.
+- **Not done / blocked:** no Python archive audit or cross-language checks; no multi-process tests;
+  `bandit`/`pip-audit` not re-run; no human sign-off.
+- **Git:** one local commit, not pushed.
