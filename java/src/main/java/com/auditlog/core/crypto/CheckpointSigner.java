@@ -179,6 +179,55 @@ public final class CheckpointSigner {
         }
     }
 
+    /** Signs JCS(message) and returns the standard Base64 signature. */
+    public String signMessage(Map<String, Object> message, int maxBytes) {
+        try {
+            Signature signature = Signature.getInstance("Ed25519");
+            signature.initSign(privateKey);
+            signature.update(CanonicalJson.canonicalize(
+                    message, CanonicalJson.MAX_DOCUMENT_DEPTH, maxBytes));
+            return Base64.getEncoder().encodeToString(signature.sign());
+        } catch (GeneralSecurityException exception) {
+            throw new IllegalStateException("Ed25519 message signing failed", exception);
+        }
+    }
+
+    /** Verifies an Ed25519 signature over already-canonical bytes with a raw 32-byte public key. */
+    public static boolean verifyRaw(byte[] canonicalMessage, String signatureBase64, byte[] rawPublic) {
+        if (rawPublic == null || rawPublic.length != RAW_PUBLIC_KEY_LENGTH || signatureBase64 == null) {
+            throw new IllegalArgumentException("Raw Ed25519 public key must contain exactly 32 bytes");
+        }
+        byte[] signatureBytes;
+        try {
+            signatureBytes = Base64.getDecoder().decode(signatureBase64);
+        } catch (IllegalArgumentException exception) {
+            return false;
+        }
+        if (!Base64.getEncoder().encodeToString(signatureBytes).equals(signatureBase64)) {
+            return false;
+        }
+        try {
+            byte[] publicDer = ByteBuffer.allocate(X509_ED25519_PREFIX.length + rawPublic.length)
+                    .put(X509_ED25519_PREFIX)
+                    .put(rawPublic)
+                    .array();
+            PublicKey publicKey = KeyFactory.getInstance("Ed25519")
+                    .generatePublic(new X509EncodedKeySpec(publicDer));
+            Signature verifier = Signature.getInstance("Ed25519");
+            verifier.initVerify(publicKey);
+            verifier.update(canonicalMessage);
+            return verifier.verify(signatureBytes);
+        } catch (SignatureException exception) {
+            return false;
+        } catch (GeneralSecurityException exception) {
+            throw new IllegalArgumentException("Invalid Ed25519 public key", exception);
+        }
+    }
+
+    public static String keyIdFor(byte[] rawPublic) {
+        return sha256Hex(rawPublic).substring(0, 16);
+    }
+
     public static boolean verifyCheckpoint(Map<String, ?> checkpoint, String publicKeyBase64) {
         Set<String> fields = Set.of(
                 "type", "ledgerId", "seq", "chainHash", "createdAt", "keyId", "signature");

@@ -8,6 +8,7 @@ import com.auditlog.service.EventQueryService;
 import com.auditlog.service.EventQueryService.CheckpointView;
 import com.auditlog.service.EventQueryService.EventPage;
 import com.auditlog.service.EventQueryService.EventView;
+import com.auditlog.service.ExportBundleService;
 import com.auditlog.verify.LedgerVerifier;
 import com.auditlog.verify.VerificationReport;
 import com.auditlog.web.ApiKeyAuthenticator.AuthenticatedPrincipal;
@@ -36,16 +37,29 @@ public class AuditController {
     private final EventQueryService queryService;
     private final CheckpointSigner signer;
     private final LedgerVerifier verifier;
+    private final ExportBundleService exportService;
 
     public AuditController(
             AppendEventService appendService,
             EventQueryService queryService,
             CheckpointSigner signer,
-            LedgerVerifier verifier) {
+            LedgerVerifier verifier,
+            ExportBundleService exportService) {
         this.appendService = appendService;
         this.queryService = queryService;
         this.signer = signer;
         this.verifier = verifier;
+        this.exportService = exportService;
+    }
+
+    @GetMapping("/audit/export")
+    @Operation(summary = "Export a signed v1 bundle for one actor or resource")
+    @SecurityRequirement(name = "apiKeyAuth")
+    public Map<String, Object> export(
+            @RequestParam(required = false) String actorId,
+            @RequestParam(required = false) String resourceId,
+            HttpServletRequest httpRequest) throws SQLException {
+        return exportService.export(actorId, resourceId, principal(httpRequest).name());
     }
 
     @GetMapping("/audit/verify")

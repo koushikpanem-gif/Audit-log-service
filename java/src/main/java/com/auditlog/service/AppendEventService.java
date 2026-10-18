@@ -153,6 +153,33 @@ public final class AppendEventService {
                 chainHash);
     }
 
+    /**
+     * Appends a service-generated event inside a caller-owned write transaction. The system
+     * source is set here and never accepted from callers.
+     */
+    public AppendedEvent appendSystemEvent(
+            Connection connection,
+            String eventType,
+            String actorId,
+            String resourceType,
+            String resourceId,
+            Map<String, ?> payload) throws SQLException {
+        requireText(eventType, "eventType");
+        requireText(actorId, "actorId");
+        requireText(resourceType, "resourceType");
+        requireText(resourceId, "resourceId");
+        Map<String, Object> copy = copyAndValidatePayload(payload);
+        AppendEventRequest request = new AppendEventRequest(
+                eventType, actorId, resourceType, resourceId, copy, null);
+        return appendLocked(connection, request, "system", copy, null);
+    }
+
+    /** Signs and stores a checkpoint for an existing head inside a caller-owned write transaction. */
+    public Map<String, Object> storeCheckpoint(
+            Connection connection, long seq, String chainHash, String createdAt) throws SQLException {
+        return insertCheckpoint(connection, seq, chainHash, createdAt);
+    }
+
     private Map<String, Object> copyAndValidatePayload(Map<String, ?> payload) {
         byte[] canonical = CanonicalJson.canonicalize(payload);
         if (canonical.length > configuration.payloadLimitBytes()) {
@@ -354,7 +381,7 @@ public final class AppendEventService {
         }
     }
 
-    private void insertCheckpoint(
+    private Map<String, Object> insertCheckpoint(
             Connection connection, long seq, String chainHash, String createdAt) throws SQLException {
         Map<String, Object> checkpoint = signer.signCheckpoint(
                 configuration.ledgerId(), seq, chainHash, createdAt);
@@ -369,6 +396,7 @@ public final class AppendEventService {
             statement.setString(5, (String) checkpoint.get("signature"));
             statement.executeUpdate();
         }
+        return checkpoint;
     }
 
     private record Head(long seq, String chainHash, String recordedAt) {

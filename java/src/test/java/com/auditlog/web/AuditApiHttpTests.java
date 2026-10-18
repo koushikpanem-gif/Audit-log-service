@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.auditlog.store.JdbcAuditRepository;
 import com.auditlog.store.StorageBusyException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.auditlog.verifier.BundleVerifier;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.file.Path;
 import java.sql.Statement;
@@ -63,6 +64,45 @@ class AuditApiHttpTests {
         registry.add("AUDIT_DB_PATH", () -> directory.resolve("http-test.db").toString());
         registry.add("AUDIT_LEDGER_ID", () -> "http-test-ledger");
         registry.add("AUDIT_CHECKPOINT_INTERVAL", () -> "3");
+    }
+
+    @Test
+    void exportEndpointIsAuditorOnlyAndProducesOfflineVerifiableBundle() throws Exception {
+        mockMvc.perform(post("/audit/events").header("X-API-Key", WRITER)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(eventJson("EXPORT_TEST", "actor-export", "resource-export", "{\"k\":\"v\"}")))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/audit/export").param("actorId", "actor-export"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/audit/export").param("actorId", "actor-export").header("X-API-Key", READER))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/audit/export").param("actorId", "actor-export").header("X-API-Key", WRITER))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/audit/export").header("X-API-Key", AUDITOR))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.error.code").value("INVALID_INPUT"));
+        mockMvc.perform(get("/audit/export").param("actorId", "a").param("resourceId", "b")
+                        .header("X-API-Key", AUDITOR))
+                .andExpect(status().isUnprocessableEntity());
+
+        String body = mockMvc.perform(get("/audit/export").param("actorId", "actor-export")
+                        .header("X-API-Key", AUDITOR))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.format").value("audit-export-bundle/v1"))
+                .andExpect(jsonPath("$.exportedBy").value("dev-auditor"))
+                .andExpect(jsonPath("$.recordCount").value(1))
+                .andReturn().getResponse().getContentAsString();
+        String publicKey = objectMapper.readTree(mockMvc.perform(get("/audit/public-key"))
+                .andReturn().getResponse().getContentAsString()).get("publicKey").asText();
+
+        BundleVerifier.Result result = BundleVerifier.verify(
+                body.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                BundleVerifier.Options.pinned(publicKey));
+
+        org.junit.jupiter.api.Assertions.assertTrue(result.verified(), result.violations().toString());
+        mockMvc.perform(get("/audit/verify").header("X-API-Key", AUDITOR))
+                .andExpect(jsonPath("$.intact").value(true));
     }
 
     @Test

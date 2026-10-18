@@ -3,6 +3,7 @@ package com.auditlog.config;
 import com.auditlog.core.crypto.CheckpointSigner;
 import com.auditlog.service.AppendEventService;
 import com.auditlog.service.EventQueryService;
+import com.auditlog.service.ExportBundleService;
 import com.auditlog.store.JdbcAuditRepository;
 import com.auditlog.verify.LedgerVerifier;
 import com.auditlog.web.ApiKeyAuthenticator;
@@ -91,6 +92,16 @@ public class AuditWebConfiguration {
             JdbcAuditRepository repository, ApiKeyAuthenticator authenticator) {
         return new EventQueryService(
                 repository, authenticator.cursorSigningKey());
+    }
+
+    @Bean
+    public ExportBundleService exportBundleService(
+            JdbcAuditRepository repository,
+            AuditConfiguration configuration,
+            CheckpointSigner signer,
+            AppendEventService appendService,
+            Clock auditClock) {
+        return new ExportBundleService(repository, configuration, signer, appendService, auditClock);
     }
 
     @Bean

@@ -191,3 +191,34 @@ Actual AI changes and validation only; not engineer approval.
   stress, no remote CI run, no archive-file audit (later action), no benchmark.
   Python has no verify endpoint yet.
 - **Git:** No commit or engineer sign-off claimed yet.
+
+## Action 10 â€” signed bundles and Java verifier
+
+- **Changed:** Added `ExportBundleService` and `GET /audit/export` (auditor/admin,
+  exactly one of `actorId`/`resourceId`) that builds the exact v1 bundle: selection,
+  checkpoint signing at the selection head and a system `BUNDLE_EXPORTED` event in
+  one write transaction. Added the framework-independent offline verifier
+  (`com.auditlog.verifier.BundleVerifier`) and CLI (`BundleVerifierCli`, exit 0/1/2)
+  that requires a pinned key unless `--allow-self-asserted` is given (labelled
+  untrusted). Added `CheckpointSigner.signMessage/verifyRaw/keyIdFor`,
+  `CanonicalJson` overloads with a caller-set byte bound, and
+  `AppendEventService.appendSystemEvent/storeCheckpoint`. Documented in
+  `docs/export-bundles.md`.
+- **AI decisions:** Accepted: one transaction for selection + checkpoint + export
+  event; `BUNDLE_EXPORTED` payload carries bundleId, digest and heads but not the
+  selection value. Assumptions needing engineer review: the shape of `selection`
+  and `completeness` (the brief fixes only the field names), the 1000-record /
+  8 MiB small-export limits, 409 for export from an empty ledger (no checkpoint can
+  exist), and the `RECORD_AFTER_HEAD`-style verifier violation codes (the brief
+  lists none for bundles). Modified: an edit briefly dropped an import in
+  `AuditController`; the compiler caught it and I restored it.
+- **Validation:** `mvn -B -f java\pom.xml verify` passed (105 tests, including 24
+  `BundleExportVerifierTests` and an HTTP export-then-verify test). From
+  `python\`: `pytest` (80 passed), `ruff check` and `mypy src` passed; Python is
+  unchanged in this action.
+- **Not done:** oversized selections are rejected (422 `EXPORT_TOO_LARGE`), no
+  export-set/chunks (next action); no Python verifier or Python export, so no
+  cross-language bundle vectors; verifier tests use bundles from the Java
+  builder and re-signing with the same test key, so they are not independent of
+  Java; no benchmark; `ruff format --check`, `pip check` not re-run.
+- **Git:** No commit or engineer sign-off claimed yet.

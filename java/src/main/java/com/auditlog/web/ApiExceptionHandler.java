@@ -1,5 +1,6 @@
 package com.auditlog.web;
 
+import com.auditlog.service.ExportBundleService;
 import com.auditlog.store.StorageBusyException;
 import java.sql.SQLException;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +18,18 @@ public class ApiExceptionHandler {
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<ApiErrorResponse> api(ApiException exception) {
         return error(exception.status(), exception.code(), exception.getMessage());
+    }
+
+    @ExceptionHandler(ExportBundleService.ExportTooLargeException.class)
+    public ResponseEntity<ApiErrorResponse> exportTooLarge(
+            ExportBundleService.ExportTooLargeException exception) {
+        return error(422, "EXPORT_TOO_LARGE", exception.getMessage());
+    }
+
+    @ExceptionHandler(ExportBundleService.EmptyLedgerException.class)
+    public ResponseEntity<ApiErrorResponse> emptyLedger(
+            ExportBundleService.EmptyLedgerException exception) {
+        return error(409, "EMPTY_LEDGER", exception.getMessage());
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

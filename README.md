@@ -28,6 +28,10 @@ are recorded in [`docs/dependency-versions.md`](./docs/dependency-versions.md).
 The root-level `pom.xml` and `src/` are a pre-existing starter. They are kept
 unchanged and are not used by the new `java/` or `python/` builds.
 
+Signed small export bundles (`GET /audit/export`) and the Java offline bundle
+verifier CLI are described in [`docs/export-bundles.md`](./docs/export-bundles.md).
+Large export sets and the Python verifier are not implemented yet.
+
 Checkpoint key/configuration contracts and limits are documented in
 [`docs/configuration-and-signing.md`](./docs/configuration-and-signing.md).
 Do not use the clearly marked test-only Ed25519 fixture outside tests.

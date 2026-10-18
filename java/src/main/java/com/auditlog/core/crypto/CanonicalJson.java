@@ -26,6 +26,8 @@ public final class CanonicalJson {
 
     public static final int MAX_INPUT_BYTES = 256 * 1024;
     public static final int MAX_NESTING_DEPTH = 10;
+    /** Upper bound for documents that wrap events, such as export bundles. */
+    public static final int MAX_DOCUMENT_DEPTH = 32;
     private static final BigInteger MAX_SAFE_INTEGER = BigInteger.valueOf(9_007_199_254_740_991L);
 
     private static final JsonFactory JSON_FACTORY = JsonFactory.builder()
@@ -47,10 +49,18 @@ public final class CanonicalJson {
     }
 
     public static JsonNode parse(byte[] json, int maxDepth) {
-        if (json == null || json.length > MAX_INPUT_BYTES) {
+        if (maxDepth < 1 || maxDepth > MAX_NESTING_DEPTH + 2) {
+            throw new IllegalArgumentException("JSON nesting depth limit is outside supported bounds");
+        }
+        return parse(json, maxDepth, MAX_INPUT_BYTES);
+    }
+
+    /** Parses with caller-chosen limits, for documents (such as export bundles) larger than events. */
+    public static JsonNode parse(byte[] json, int maxDepth, int maxBytes) {
+        if (json == null || json.length > maxBytes) {
             throw new IllegalArgumentException("JSON input is missing or exceeds the byte limit");
         }
-        if (maxDepth < 1 || maxDepth > MAX_NESTING_DEPTH + 2) {
+        if (maxDepth < 1 || maxDepth > MAX_DOCUMENT_DEPTH || maxBytes < 1) {
             throw new IllegalArgumentException("JSON nesting depth limit is outside supported bounds");
         }
         String text = decodeUtf8(json);
@@ -99,7 +109,14 @@ public final class CanonicalJson {
     }
 
     public static byte[] canonicalize(byte[] json, int maxDepth) {
-        parse(json, maxDepth);
+        if (maxDepth < 1 || maxDepth > MAX_NESTING_DEPTH + 2) {
+            throw new IllegalArgumentException("JSON nesting depth limit is outside supported bounds");
+        }
+        return canonicalize(json, maxDepth, MAX_INPUT_BYTES);
+    }
+
+    public static byte[] canonicalize(byte[] json, int maxDepth, int maxBytes) {
+        parse(json, maxDepth, maxBytes);
         try {
             byte[] wrapped = new JsonCanonicalizer("[" + decodeUtf8(json) + "]").getEncodedUTF8();
             byte[] canonical = new byte[wrapped.length - 2];
@@ -125,9 +142,16 @@ public final class CanonicalJson {
         if (maxDepth < 1 || maxDepth > MAX_NESTING_DEPTH + 2) {
             throw new IllegalArgumentException("JSON nesting depth limit is outside supported bounds");
         }
+        return canonicalize(value, maxDepth, MAX_INPUT_BYTES);
+    }
+
+    public static byte[] canonicalize(Object value, int maxDepth, int maxBytes) {
+        if (maxDepth < 1 || maxDepth > MAX_DOCUMENT_DEPTH || maxBytes < 1) {
+            throw new IllegalArgumentException("JSON nesting depth limit is outside supported bounds");
+        }
         validateValue(value, maxDepth);
         try {
-            return canonicalize(MAPPER.writeValueAsBytes(value), maxDepth);
+            return canonicalize(MAPPER.writeValueAsBytes(value), maxDepth, maxBytes);
         } catch (IOException exception) {
             throw new IllegalArgumentException("Value is not JSON serializable", exception);
         }
