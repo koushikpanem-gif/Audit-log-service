@@ -61,3 +61,70 @@ not substitute for engineer review or approval.
   implementation was changed or added in this documentation-only action.
 - Commit `docs: define requirements and ownership` — not created; blocked by
   missing configured Git identity. Commit hash: none.
+
+## Action 02 — Java and Python service scaffolds
+
+- **Scope:** Java 21 / Spring Boot 3 Maven skeleton with health endpoint,
+  configured OpenAPI UI/document endpoints and framework-independent package
+  boundaries; Python >=3.11 Starlette `src/` package with a health endpoint and
+  its own test; exact direct dependency pins; basic Java/Python CI; local
+  Windows and Unix setup commands. No audit behavior is implemented.
+- **Workspace finding:** Git is now on `main` tracking `origin/main`, and
+  Action 01 is present in the branch history. Existing root `pom.xml`, `src/`,
+  wrapper, build output and project PDF are untracked pre-existing files; they
+  were preserved and excluded from this action.
+- **Version decisions:** The latest stable Boot 3.5 patch in Maven Central
+  metadata was 3.5.16; Spring Boot 3.5 open-source support ended 2026-06-30.
+  Used it to honor the explicit Boot 3 requirement, and documented the support
+  risk for engineer review. Direct Python runtime/dev dependencies are pinned
+  exactly in `python/pyproject.toml`; rationale and official source links are
+  in `docs/dependency-versions.md`.
+- **AI decisions:** Added only health, package/build boundaries, API-doc
+  routing, independent verifier namespace, smoke tests and CI. No ledger
+  routes, schema, application cryptography, persistence or business behavior
+  were added. Existing root starter files were not migrated or modified.
+- **Human decisions:** No new stakeholder answer, support contract, or approval
+  was assumed.
+- **Validation performed:** `mvn -B -f java\\pom.xml verify` passed using
+  Java 21.0.12.1 and Maven 3.10.0; all 3 Java health/OpenAPI tests passed.
+  Maven emitted a non-fatal Byte Buddy dynamic-agent warning. The local Python
+  virtual environment was created with Python 3.15.0 (Python 3.11 was not
+  installed locally). After installing the exact pinned dependencies,
+  `ruff check .`, `ruff format --check .`, `mypy src`, `python -m pytest`, and
+  `python -m pip check` all passed; 1 Python health test passed. The first Ruff
+  run found an import-format issue, which was corrected with Ruff's automatic
+  fix. The first Python test run exposed Starlette's deprecation warning for
+  HTTPX; the test extra was changed to Starlette's recommended pinned HTTPX2
+  transport, and the final test run passed without that warning. A generated
+  editable-install `.egg-info` directory was removed and added to `.gitignore`
+  so build metadata is not committed. CI itself was not run remotely.
+- **Git/commit:** Staged files were reviewed with the specified local commit
+  message `build: scaffold Java and Python services`. No push is authorized.
+
+### Exact Action 02 commands and results
+
+- `mvn -B -f java\pom.xml verify` — passed; Java tests 3/3.
+- `python -m venv .venv` (from `python/`) — passed with Python 3.15.0.
+- `.\.venv\Scripts\python.exe -m pip install -e '.[dev]'` (from `python/`)
+  — passed for the exact declared pins. Pip emitted a non-blocking warning
+  that it could not check for a newer pip version.
+- `.\.venv\Scripts\python.exe -m pip uninstall -y httpx` (from `python/`)
+  — passed; removed the stale test-client dependency after switching to HTTPX2.
+- Initial `ruff check .` — failed on I001 import formatting in
+  `src/audit_log_service/__main__.py`.
+- `ruff check --fix src\audit_log_service\__main__.py` — passed and applied
+  the formatting fix.
+- Initial `python -m pytest` — 1 passed with Starlette's HTTPX deprecation
+  warning; after installing HTTPX2 and removing stale HTTPX, final tests passed
+  without that warning.
+- `ruff check .` — passed on final scaffold.
+- `ruff format --check .` — passed; 5 files already formatted.
+- `mypy src` — passed; no issues in 4 source files.
+- `python -m pytest` — passed; 1 test.
+- `python -m pip check` — passed; no broken requirements.
+- `rg` search for `org\.springframework` in Java `core`, `domain`, `store`,
+  `service`, `verify`, and `verifier` packages — no matches.
+- `git diff --check` and `git diff --cached --check` — passed.
+- Remote GitHub Actions CI — not run; no push or publication was performed.
+- **Git/commit:** Git identity is configured now. The action authorizes one
+  local commit after checks pass; no push is authorized.

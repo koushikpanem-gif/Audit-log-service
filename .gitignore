@@ -53,3 +53,14 @@ api-keys*.json
 archives/
 exports/
 artifacts/
+
+# Python environments, caches, and build output
+.venv/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.py[cod]
+python/dist/
+python/build/
+*.egg-info/

@@ -1,47 +1,73 @@
 # Audit Log Service
 
-This workspace is at Action 01: requirements and ownership definition. No audit
-ledger, API, verifier, or compliance report has been implemented by this action.
-The full supplied build specification is preserved in
-[`docs/BUILD_REQUIREMENTS.txt`](./docs/BUILD_REQUIREMENTS.txt).
+This repository is being scaffolded in numbered actions. Action 02 adds
+independent Java and Python service skeletons, health endpoints, basic checks,
+and local development commands. Audit append/query, cryptography, storage,
+redaction, export, and compliance-report behavior are not implemented yet.
 
-## Scope and ownership
+The requirements and acceptance mapping are in
+[`docs/BUILD_REQUIREMENTS.txt`](./docs/BUILD_REQUIREMENTS.txt) and
+[`docs/requirements-mapping.md`](./docs/requirements-mapping.md).
+Scenario C remains provisional; see
+[`docs/scenario-c.md`](./docs/scenario-c.md). Dependency pins and their sources
+are recorded in [`docs/dependency-versions.md`](./docs/dependency-versions.md).
 
-The intended deliverables are:
+## Repository layout
 
-- Scenario A: append, query, and verify audit events.
-- Scenario B: redact, retain/archive, and export verifiable evidence.
-- Scenario C: an internally used, on-demand account-access report, subject to
-  the questions and provisional assumptions in
-  [`docs/scenario-c.md`](./docs/scenario-c.md).
+- `java/` — Java 21 / Spring Boot 3 Maven skeleton.
+- `python/` — Python >=3.11 Starlette service in a `src/` layout.
+- `python/src/audit_log_service/verifier/` — reserved for the independent
+  offline verifier; verification logic is not implemented yet.
+- `docs/` — requirements, ADRs, security, and operations documentation.
+- `scripts/` — reserved for operational scripts; no service scripts yet.
+- `.github/workflows/` — CI for the two skeletons.
 
-The engineer owns design decisions, stakeholder clarification, implementation
-review, and sign-off. The attestation in
-[`docs/attestation-template.md`](./docs/attestation-template.md) is an unsigned
-template only. No stakeholder answer, test result, or human approval is
-asserted here.
+The root-level `pom.xml` and `src/` are a pre-existing starter. They are kept
+unchanged and are not used by the new `java/` or `python/` builds.
 
-## Intended layout and technology
+## Local checks
 
-The assignment specifies Java 21 / Spring Boot 3 / Maven and a separate Python
-3.11+ / Starlette service, with shared protocol contracts under `docs/`,
-operational scripts under `scripts/`, and CI under `.github/workflows/`.
-Implementation belongs in `java/` and `python/`.
+### Windows PowerShell
 
-The workspace currently contains a pre-existing Spring Boot starter at the
-repository root (`pom.xml`, `src/`, and Maven wrapper). Action 01 leaves it
-untouched. Reconcile this starter layout and its dependency versions against
-the assignment before implementation; do not treat it as delivered audit-log
-functionality.
+```powershell
+mvn -f java\pom.xml verify
+Set-Location python
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -e ".[dev]"
+ruff check .
+ruff format --check .
+mypy src
+python -m pytest
+```
 
-## Current action validation
+To launch the Java service, run `mvn -f java\pom.xml spring-boot:run` from the
+repository root; its health endpoint is `http://localhost:8080/health`, with
+OpenAPI at `/openapi.json` and the docs UI at `/docs`. To launch Python, in a
+separate terminal run `Set-Location python` and `python -m audit_log_service`;
+its health endpoint is `http://localhost:8000/health`.
 
-This action changes documentation and secret-ignore rules only. The focused
-checks and their actual results are recorded in [`AI_USAGE_LOG.md`](./AI_USAGE_LOG.md).
-Java/Python behavioral gates are deferred until affected implementation
-modules exist; no feature is claimed to pass them.
+### Unix shell
 
-## Next action
+```sh
+mvn -f java/pom.xml verify
+cd python
+python3.11 -m venv .venv
+. .venv/bin/activate
+python -m pip install -e '.[dev]'
+ruff check .
+ruff format --check .
+mypy src
+python -m pytest
+```
 
-Stop for engineer review of requirements, ownership, and the unresolved
-Scenario C questions before beginning implementation.
+To launch Java, run `mvn -f java/pom.xml spring-boot:run` from the repository
+root; its health endpoint is `http://localhost:8080/health`, with OpenAPI at
+`/openapi.json` and the docs UI at `/docs`. To launch Python in a separate
+terminal, run `cd python` and `python -m audit_log_service`; its health
+endpoint is `http://localhost:8000/health`.
+
+The current machine's installed Python may differ from 3.11; the CI workflow
+uses Python 3.11. The Spring Boot 3.5 line is retained to match the assignment,
+but its open-source support ended on 2026-06-30. See the dependency record and
+resolve support requirements before production use.
