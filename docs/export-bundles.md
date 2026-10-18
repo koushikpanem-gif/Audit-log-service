@@ -97,8 +97,14 @@ layer. The fix is a separate commit so the history stays honest.
   public key and empty-message signature). Java verifies them but never regenerates them.
   A pytest checks the files match the generator, and another validates them against the
   schemas with `jsonschema`.
-- Not proven: a Python production verifier or Python-built bundles verified by Java in
-  production code paths (Action 16), export-set chunks (Action 11), benchmarks (Action 23).
+- Python-signed edge-case fixtures (`python/tests/fixtures/python_signed`, from
+  `generate_verifier_vectors.py`) are verified by Java in `PythonInteropTests`.
+- Java-signed fixtures (`python/tests/fixtures/java_signed`) were produced once by the Java
+  service with the same public test key and random salts, and are frozen. The independent
+  Python verifier (`python/src/audit_log_service/verifier`, see `docs/python-verifier.md`)
+  verifies them in `python/tests/test_verifier.py`.
+- Not proven: benchmarks (Action 23); multi-process behaviour of the verifier; the
+  Windows-skipped symlink test.
 
 ## Limits
 
