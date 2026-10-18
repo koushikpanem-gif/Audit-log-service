@@ -8,6 +8,8 @@ import com.auditlog.service.EventQueryService;
 import com.auditlog.service.EventQueryService.CheckpointView;
 import com.auditlog.service.EventQueryService.EventPage;
 import com.auditlog.service.EventQueryService.EventView;
+import com.auditlog.verify.LedgerVerifier;
+import com.auditlog.verify.VerificationReport;
 import com.auditlog.web.ApiKeyAuthenticator.AuthenticatedPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -33,14 +35,24 @@ public class AuditController {
     private final AppendEventService appendService;
     private final EventQueryService queryService;
     private final CheckpointSigner signer;
+    private final LedgerVerifier verifier;
 
     public AuditController(
             AppendEventService appendService,
             EventQueryService queryService,
-            CheckpointSigner signer) {
+            CheckpointSigner signer,
+            LedgerVerifier verifier) {
         this.appendService = appendService;
         this.queryService = queryService;
         this.signer = signer;
+        this.verifier = verifier;
+    }
+
+    @GetMapping("/audit/verify")
+    @Operation(summary = "Verify the full ledger in one snapshot")
+    @SecurityRequirement(name = "apiKeyAuth")
+    public VerificationReport verify() throws SQLException {
+        return verifier.verify();
     }
 
     @PostMapping("/audit/events")

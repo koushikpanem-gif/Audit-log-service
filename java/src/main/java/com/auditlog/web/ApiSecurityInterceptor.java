@@ -70,7 +70,8 @@ public final class ApiSecurityInterceptor implements HandlerInterceptor {
                 && method.equals("GET")) {
             return READ_ROLES;
         }
-        if (path.equals("/audit/checkpoints") && method.equals("GET")) {
+        if ((path.equals("/audit/checkpoints") || path.equals("/audit/verify"))
+                && method.equals("GET")) {
             return AUDITOR_ROLES;
         }
         return null;

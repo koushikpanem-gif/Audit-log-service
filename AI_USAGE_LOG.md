@@ -163,3 +163,31 @@ Actual AI changes and validation only; not engineer approval.
   `python -m mypy src`, `python -m pytest` (76 passed), and
   `python -m pip check` passed. Cross-process stress and remote CI were not run.
 - **Git:** No commit or engineer sign-off claimed yet.
+
+## Action 09 — full-chain verification
+
+- **Changed:** Added the Java `LedgerVerifier` (`com.auditlog.verify`) and
+  `GET /audit/verify` (auditor/admin). One read snapshot, 1000-row ordered
+  batches, all 13 diagnostic types, earliest-100 diagnostics with exact total,
+  `firstViolation` and `violationsTruncated`. Stored data is treated as
+  untrusted raw values; malformed data becomes `MALFORMED_RECORD`, not an
+  error. Missing leaves and archive skeletons fail closed unless a validated
+  system authorization event exists; authorizations are indexed in a private
+  scratch SQLite database so memory stays bounded. Added `docs/verification.md`
+  and `scripts/synthetic_tamper.py` (refuses non-`synthetic-` ledgers, needs an
+  explicit flag).
+- **AI decisions:** Accepted: one-snapshot batched design and scratch-DB
+  authorization index. Modified: first draft read SQLite integers as `Long`
+  only, which flagged every row malformed (found by tests; fixed to accept
+  integer types). Assumptions that need engineer review: exact-key payload
+  schemas for `RECORD_REDACTED`/`RECORDS_ARCHIVED` (the writers do not exist
+  yet), retention judged by the event's declared `retentionDays`, and
+  cumulative archive coverage by `archivedThroughSeq`.
+- **Validation:** `mvn -B -f java\pom.xml verify` passed (80 tests, including 30
+  `LedgerVerifierTests` and the `/audit/verify` HTTP role checks). From
+  `python\`: `ruff check .`, `ruff format --check .`, `mypy src`, `pytest`
+  (80 passed, including 4 tamper-tool tests) and `pip check` passed.
+- **Not done:** no concurrent-append-during-verify test, no cross-process
+  stress, no remote CI run, no archive-file audit (later action), no benchmark.
+  Python has no verify endpoint yet.
+- **Git:** No commit or engineer sign-off claimed yet.

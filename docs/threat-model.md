@@ -54,4 +54,5 @@ The design does not claim external witnessing, KMS/HSM custody, WORM storage,
 legal compliance, complete upstream event capture, physical erasure, or
 protection from a compromised signing key or database administrator. An
 archive skeleton alone cannot recompute archived content; archive integrity
-and availability are separately audited.
+and availability are separately audited. The unanchored-tail limits are
+demonstrated by tests and listed in [verification](verification.md).

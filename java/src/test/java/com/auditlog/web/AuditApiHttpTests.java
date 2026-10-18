@@ -98,6 +98,20 @@ class AuditApiHttpTests {
                 .andExpect(status().isForbidden());
         mockMvc.perform(get("/audit/checkpoints").header("X-API-Key", AUDITOR))
                 .andExpect(status().isOk());
+        mockMvc.perform(get("/audit/verify"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/audit/verify").header("X-API-Key", READER))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/audit/verify").header("X-API-Key", WRITER))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/audit/verify").header("X-API-Key", AUDITOR))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.intact").value(true))
+                .andExpect(jsonPath("$.hashAlgorithm").value("SHA-256"))
+                .andExpect(jsonPath("$.violations").isArray())
+                .andExpect(jsonPath("$.totalViolationCount").value(0));
+        mockMvc.perform(get("/audit/verify").header("X-API-Key", ADMIN))
+                .andExpect(status().isOk());
         mockMvc.perform(post("/audit/events").header("X-API-Key", WRITER)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(eventJson("ROLE_TEST", "actor-role", "resource-role", "{}")))

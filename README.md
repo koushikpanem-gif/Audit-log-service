@@ -21,7 +21,8 @@ are recorded in [`docs/dependency-versions.md`](./docs/dependency-versions.md).
 - `python/src/audit_log_service/verifier/` — reserved for the independent
   offline verifier; verification logic is not implemented yet.
 - `docs/` — requirements, ADRs, security, and operations documentation.
-- `scripts/` — reserved for operational scripts; no service scripts yet.
+- `scripts/` — operational scripts; currently `synthetic_tamper.py`, a
+  synthetic-data-only tamper tool (see `docs/verification.md`).
 - `.github/workflows/` — CI for the two skeletons.
 
 The root-level `pom.xml` and `src/` are a pre-existing starter. They are kept

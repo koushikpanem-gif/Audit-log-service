@@ -4,6 +4,7 @@ import com.auditlog.core.crypto.CheckpointSigner;
 import com.auditlog.service.AppendEventService;
 import com.auditlog.service.EventQueryService;
 import com.auditlog.store.JdbcAuditRepository;
+import com.auditlog.verify.LedgerVerifier;
 import com.auditlog.web.ApiKeyAuthenticator;
 import com.auditlog.web.ApiSecurityInterceptor;
 import com.auditlog.web.StrictJsonRequestFilter;
@@ -90,6 +91,16 @@ public class AuditWebConfiguration {
             JdbcAuditRepository repository, ApiKeyAuthenticator authenticator) {
         return new EventQueryService(
                 repository, authenticator.cursorSigningKey());
+    }
+
+    @Bean
+    public LedgerVerifier ledgerVerifier(
+            JdbcAuditRepository repository,
+            AuditConfiguration configuration,
+            CheckpointSigner signer,
+            Clock auditClock) {
+        return new LedgerVerifier(
+                repository, configuration.ledgerId(), signer.publicKeyBase64(), auditClock);
     }
 
     @Bean
