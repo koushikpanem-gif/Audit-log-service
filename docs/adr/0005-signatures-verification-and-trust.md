@@ -27,11 +27,11 @@
   for environment names and file format.
 - **Fixture:** The shared `ed25519-checkpoint-v1.json` test vector contains a
   fixed private key explicitly marked TEST ONLY. It exists solely to prove
-  Java/Python signature-byte compatibility and must never be used operationally.
+  signature-byte compatibility and must never be used operationally.
 - **Consequences:** Report all specified violation types and counters.
   See [verification](../verification.md) for the implemented Java verifier,
   its authorization schemas and demonstrated limits.
   Authorization events must themselves validate before they authorize
   redaction/archive. No claim is made against full rewrite, uncheckpointed
   tail loss, removal of local checkpoints, administrator access, or key
-  compromise. The Python offline verifier must not import Java service code.
+  compromise. The offline verifier must not depend on the service's database.

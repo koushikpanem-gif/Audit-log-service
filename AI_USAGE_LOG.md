@@ -423,3 +423,10 @@ Actual AI changes and validation only; not engineer approval.
 - **Validation:** Python `tests/test_account_report.py` 37 passed with the temporary case; Java `AccountAccessContractTests`, `AccountAccessReportServiceTests`, `AccountAccessReportHttpTests` passed (8, 9, 3 tests) with the temporary case. `scripts\check_hygiene.py` clean after staging. Grep for overclaims (tamper-proof, production-ready, regulator-ready) found only a negation in README.
 - **Not done / blocked:** CI, Docker images, bandit, OWASP dependency-check, `demo.sh` and the Linux memory probe remain unrun. No human review, sign-off or stakeholder answers exist. Full gates were not re-run in this action.
 - **Git:** one local commit, `docs: finalize engineering evidence and live defense`; not pushed.
+
+## Action 25: Remove the duplicate Python service
+
+- **Scope:** Deleted `python/`, its docs (`python-service.md`, `python-verifier.md`, `cross-service-parity.md`), demo scripts and the synthetic tamper script; trimmed `ci.yml`, `compose.yaml`, `.dockerignore`, `scripts/benchmark.py` and the docs to a single Java service.
+- **AI decisions:** Confirmed the Python service duplicated the Java API, schema and protocol before removing it. Kept the independently generated golden fixtures by moving them to `java/src/test/resources/golden` and replaced `PythonInteropTests` with `GoldenSignedFixtureTests`, so the Java verifier is still checked against evidence it did not produce. Recorded the lost live cross-implementation check as a trade-off in ADR 0001, the engineering summary and the live-defense notes. Historical entries in this log were left unchanged.
+- **Validation:** `mvn -B -f java\pom.xml verify` passed (215 tests, 0 failures) after the code and fixture moves; see the next entry for the final re-run. No human review or sign-off has occurred.
+- **Git:** committed separately from the CI NVD-key fix.

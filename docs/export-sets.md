@@ -60,8 +60,7 @@ boundaries, and flags unlisted chunk files. Codes: `CHUNK_MISSING`, `CHUNK_DIGES
 
 ## Limits
 
-The independent Python verifier (`docs/python-verifier.md`) verifies Java- and Python-signed
-sets. Active
+The offline verifier (`BundleVerifierCli`, see [export-bundles.md](./export-bundles.md)) verifies sets. Active
 job count is per process (16). Directory fsync is best effort on Windows. A signer can sign an
 incomplete set; completeness relies on the signer. Archived records and upstream gaps are excluded
 and not provable.

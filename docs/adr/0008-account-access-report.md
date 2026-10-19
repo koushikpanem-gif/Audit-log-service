@@ -1,6 +1,6 @@
 # ADR-0008: Internal account-access compliance report
 
-- **Status:** Implemented in Java (Action 15) and Python (Action 20) on unconfirmed assumptions; see
+- **Status:** Implemented in Java (Action 15) on unconfirmed assumptions; see
   [account-access-report.md](../account-access-report.md). Stakeholder/engineer clarification is still pending.
 - **Context:** The assignment requests an account-access report but explicitly
   requires unresolved business/legal questions to remain visible.

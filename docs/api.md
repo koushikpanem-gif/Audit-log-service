@@ -1,8 +1,8 @@
 # API and schema reference
 
-Identical in both services (Java port 8080, Python port 8000). Authentication is the `X-API-Key` header.
-Machine-readable contracts: `GET /openapi.json` (each service) and the JSON Schemas in [`schemas/`](./schemas).
-Python's `/docs` is a plain HTML route table; Java's `/docs` is the springdoc UI.
+The service listens on port 8080. Authentication is the `X-API-Key` header.
+Machine-readable contracts: `GET /openapi.json` and the JSON Schemas in [`schemas/`](./schemas).
+The `/docs` route is the springdoc UI.
 
 ## Roles and routes
 
@@ -28,14 +28,14 @@ Dev sample keys (public, development only): `dev-writer-only`, `dev-reader-only`
 | `GET /audit/archive-audit` | auditor, admin | archive files, digests, signatures against the skeleton |
 | `GET /compliance/account-access-report` | auditor, admin | exactly one of `accountId`/`actorId`, plus `from` and `to` |
 
-There is no event PUT, PATCH or DELETE. Verified in both services' route tables (`AuditController.java`, `app.py`) and role tables
-(`ApiSecurityInterceptor.java`, `auth.py`).
+There is no event PUT, PATCH or DELETE. Verified in the route table (`AuditController.java`) and role table
+(`ApiSecurityInterceptor.java`).
 
 ## Error shape and statuses
 
 `{"error":{"code":"...","message":"...","details":[]}}`. No stack traces or payload values.
 401 missing/invalid key, 403 role, 404 missing, 409 conflict, 413 size, 422 invalid input, 503 database busy
-(generic message). A disk-full condition currently surfaces as a generic 500 in both services (see
+(generic message). A disk-full condition currently surfaces as a generic 500 (see
 [performance.md](./performance.md)); that is an open engineer decision.
 
 ## Limits (defaults)
@@ -50,7 +50,7 @@ record. A caller cannot set it, so it cannot be back-dated. The caller may suppl
 happened in the source system), normalized to UTC and limited to 300 s of future skew; it is stored and hashed but is not
 used for ordering, retention or time-range filters. Reserved types `RECORD_REDACTED`, `RECORDS_ARCHIVED`, `BUNDLE_EXPORTED`,
 `COMPLIANCE_REPORT_GENERATED` and source `system` cannot be submitted. Environment variables are listed in
-[configuration-and-signing.md](./configuration-and-signing.md) and [python-service.md](./python-service.md).
+[configuration-and-signing.md](./configuration-and-signing.md).
 
 ## Pagination caveat
 

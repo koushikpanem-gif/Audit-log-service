@@ -1,9 +1,8 @@
 # Configuration and checkpoint signing
 
-This document records shared Java/Python configuration validation and the
-framework-independent Ed25519 signer. Java startup loads this configuration
-for the secured append/query API. Python and later ledger workflows use the
-same settings as their corresponding features are implemented.
+This document records the configuration validation and the
+framework-independent Ed25519 signer. Startup loads this configuration
+for the secured append/query API and the later ledger workflows.
 
 ## Environment
 

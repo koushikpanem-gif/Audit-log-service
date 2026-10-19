@@ -11,16 +11,16 @@ listed there. IDs are stable traceability anchors. The engineer reviews the requ
 
 | ID | Requirement | Acceptance evidence (target check) |
 |---|---|---|
-| SH-01 | Provide Java 21 / Spring Boot 3 / Maven and Python >=3.11 / Starlette services, independent offline Python verifier, shared API/schema/protocol, separate DB files, and the specified repository layout. | Both services build/run independently; Python verifier imports no Java service code; contract and bidirectional cross-language tests pass. |
+| SH-01 | Provide a Java 21 / Spring Boot 3 / Maven service (engineer's stack choice; a second Python service was built and later removed, see ADR 0001), an offline verifier, and the specified repository layout. | The service builds and runs; the offline verifier depends only on `core.crypto` and `domain`; contract and frozen-fixture tests pass. |
 | SH-02 | Pin compatible supported dependency versions based on official sources at bootstrap; document version rationale; preserve the specified stack. | Manifests lock exact resolved dependencies and docs record source/date/rationale; dependency and build checks pass. |
-| SH-03 | Use RFC 8785 JCS and the exact v1 genesis, leaf, content, and chain formulas. Validate JSON safely before recursive processing; preserve hash-version compatibility. | Independently generated golden vectors match in both languages; malformed JSON, duplicate keys, invalid Unicode, unsafe integers, NaN/infinity, depth and size are rejected. |
-| SH-04 | Commit payload scalar leaves with fresh 32-byte salts and RFC 6901 pointers; preserve container shape and explicit redaction presentation. | Cross-language leaf vectors cover null/scalars/arrays/escaped pointers; repeated writes use distinct cryptographic salts; reveal output identifies sorted redacted paths. |
-| SH-05 | Sign checkpoints and bundles with Ed25519 over JCS; enforce exact key encodings, IDs, signed fields, and pinned-key verification. | Cross-language signatures verify; key ID/raw key vectors pass; altered signed content and unpinned/self-asserted trust cases are identified correctly. |
+| SH-03 | Use RFC 8785 JCS and the exact v1 genesis, leaf, content, and chain formulas. Validate JSON safely before recursive processing; preserve hash-version compatibility. | Independently generated golden vectors match the Java implementation; malformed JSON, duplicate keys, invalid Unicode, unsafe integers, NaN/infinity, depth and size are rejected. |
+| SH-04 | Commit payload scalar leaves with fresh 32-byte salts and RFC 6901 pointers; preserve container shape and explicit redaction presentation. | Shared leaf vectors cover null/scalars/arrays/escaped pointers; repeated writes use distinct cryptographic salts; reveal output identifies sorted redacted paths. |
+| SH-05 | Sign checkpoints and bundles with Ed25519 over JCS; enforce exact key encodings, IDs, signed fields, and pinned-key verification. | Signatures verify against frozen independent fixtures; key ID/raw key vectors pass; altered signed content and unpinned/self-asserted trust cases are identified correctly. |
 | SH-06 | Keep the Java core/domain/store/service/verify/verifier framework-independent; use plain JDBC via `AuditRepository`, not JPA; keep Spring to web/config. | Dependency/module checks and tests establish that core layers do not depend on Spring; repository behavior uses JDBC. |
 | SH-07 | Engineer owns design review, stakeholder decisions, and sign-off; retain authentic history; never fabricate approval, results, identities, or past commits. | Review records and final unsigned template are completed by an identified engineer; AI logs contain only actual choices/results. |
-| SH-08 | Operate both services independently; provide Windows/Unix setup, operational scripts, CI, and documented prototype limits. | A documented demo exercises A/B/C for both services; CI and setup instructions are replayed on supported environments. |
+| SH-08 | Operate the service; provide Windows/Unix setup, operational scripts, CI, and documented prototype limits. | The README quick start exercises A/B/C; CI and setup instructions are replayed on supported environments. |
 
-## Scenario A — append, query, verify
+## Scenario A â€” append, query, verify
 
 | ID | Requirement | Acceptance evidence (target check) |
 |---|---|---|
@@ -35,7 +35,7 @@ listed there. IDs are stable traceability anchors. The engineer reviews the requ
 | A-09 | Expose public health/key endpoints, OpenAPI JSON/docs, verify and checkpoint listing with correct authorization. | HTTP tests and generated OpenAPI checks verify route shape, auth, status codes and documentation endpoint availability. |
 | A-10 | Create no checkpoint for an empty ledger; checkpoint on configured append intervals and on demand. | Integration tests cover empty-ledger 409, interval boundary and admin-triggered checkpoint with signature verification. |
 
-## Scenario B — redaction, retention, verifiable bulk export
+## Scenario B â€” redaction, retention, verifiable bulk export
 
 | ID | Requirement | Acceptance evidence (target check) |
 |---|---|---|
@@ -44,7 +44,7 @@ listed there. IDs are stable traceability anchors. The engineer reviews the requ
 | B-03 | Archive only expired oldest contiguous live prefix; support dry run, positive bounded retention, bounded record/byte batches, signed bundles and crash-safe publication before clearing live content. | Archive tests cover cutoff and policy, dry-run no side effects, publication failure retaining DB values, crash stages, safe names, restart reconciliation and bounded batches. |
 | B-04 | Preserve verifiable archive skeleton and append archive authorization metadata only after durable publication; handle cumulative authorizations and never delete unproven referenced artifacts. | Tests validate metadata/skeleton, repeated archives including archived authorizations, orphan handling, file loss diagnostics and no premature deletion. |
 | B-05 | Exclude archived records from normal reads/exports and disclose exclusion; separately audit archive bundle integrity, signature, digest, metadata and range against skeleton. | Query/export tests verify exclusion/disclosure; archive audit differentiates missing/invalid archive evidence from a chain break. |
-| B-06 | Produce exact v1 signed export bundle fields, records, digest, purpose, checkpoint and signer; never silently truncate or claim unsupported completeness. | Independent Python/Java fixture verification checks exact semantic fields, canonical signature, records digest/count, and output-size behavior. |
+| B-06 | Produce exact v1 signed export bundle fields, records, digest, purpose, checkpoint and signer; never silently truncate or claim unsupported completeness. | Frozen independently signed fixture verification checks exact semantic fields, canonical signature, records digest/count, and output-size behavior. |
 | B-07 | For large outputs use versioned signed export-set manifest/chunks frozen to one snapshot/head, bounded by record and byte limits, atomically READY only when published, recoverable, safe to download. | Tests verify chunk ordering/counts/digests, manifest selection/head/exclusion/expiry, path safety, publication states and recovery. |
 | B-08 | Verify bundles with an out-of-band pinned key by default; optional self-asserted mode must label origin untrusted. Validate all protocol, record and set invariants with bounded resources. | CLI tests cover valid/altered/untrusted/malformed input; default trust requires pinning and exits 0 verified, 1 invalid evidence, 2 usage/input. |
 | B-09 | Clearly scope filtered exports: sequence gaps do not prove global inclusion; missing disclosed leaf is not proof of authorized redaction; completeness relies on signer. | Contract and verifier tests distinguish filtered evidence from full-ledger inclusion and avoid claiming redaction authorization without evidence. |
@@ -52,7 +52,7 @@ listed there. IDs are stable traceability anchors. The engineer reviews the requ
 | B-11 | Protect SQLite with WAL, FULL synchronous, foreign keys, secure_delete, per-connection busy timeout, BEGIN IMMEDIATE mutations, snapshot reads, schema binding, migrations and write-guard triggers. | Real database tests inspect pragmas/schema, transaction rollback/serialization, ledger mismatch, migrations and exact trigger allowances. |
 | B-12 | Retain correct UTC timestamp/sequence behavior and reject caller occurrence times >300 seconds in the future. | Clock-controlled concurrent/process tests cover monotonic `recordedAt`, tie handling, UTC format and 422 future-skew case. |
 
-## Scenario C — account-access compliance report
+## Scenario C â€” account-access compliance report
 
 | ID | Requirement | Acceptance evidence (target check) |
 |---|---|---|
@@ -69,15 +69,15 @@ listed there. IDs are stable traceability anchors. The engineer reviews the requ
 | ID | Requirement | Acceptance evidence (target check) |
 |---|---|---|
 | Q-01 | Test unit, integration, HTTP, real SQLite, concurrent threads/processes, restart, rollback, tampering, malformed data, key pinning, busy WAL, archive crash, redaction/archive interactions, exports and snapshot-consistent reports. | Test inventory maps each listed case to a passing test; failures/tool/network gaps are recorded verbatim and not suppressed. |
-| Q-02 | Generate independently authored cross-language vectors and signed bundles in both directions; use only labeled non-production test keys. | Java-produced evidence independently verifies in Python and vice versa; expected values are not produced by the implementation under test. |
-| Q-03 | Run Java Maven verify, meaningful coverage enforcement after baseline, formatting/static analysis/dependency scan; Python ruff check/format, mypy, pytest, bandit and pip-audit. | CI/local logs record exact commands and actual outcomes; coverage is measured and enforced only after an honest baseline. |
+| Q-02 | Keep independently authored vectors and signed bundles as frozen fixtures; use only labeled non-production test keys. | Fixtures were generated once by a separate implementation (since removed) and are verified by the Java verifier; expected values are not produced by the code under test. There is no live second implementation. |
+| Q-03 | Run Java Maven verify, meaningful coverage enforcement after baseline, formatting/static analysis/dependency scan. | CI/local logs record exact commands and actual outcomes; coverage is measured and enforced only after an honest baseline. |
 | Q-04 | Benchmark append/query/verify/export and report workload, environment, throughput and p50/p95/p99 without invented targets. | Reproducible benchmark report contains workload/environment and measured values or a clearly reported blocker. |
-| Q-05 | Demo A/B/C in both services, pinned-key offline verification, and tampering; document prototype limits, setup, human review, AI decisions and live-defense rehearsal. | Recorded demo evidence, reproducible setup and engineer-reviewed final summary/attestation; no fabricated sign-off. |
+| Q-05 | Demo A/B/C, pinned-key offline verification, and tampering; document prototype limits, setup, human review, AI decisions and live-defense rehearsal. | Recorded demo evidence, reproducible setup and engineer-reviewed final summary/attestation; no fabricated sign-off. |
 
 ### Action 23 evidence for Q-04
 
 [`performance.md`](./performance.md) documents the benchmark method, a recorded
-Windows run of both services (`docs/benchmarks/2026-10-18-windows-run1.json`),
+Windows run of the Java service (`docs/benchmarks/2026-10-18-windows-run1.json`),
 single-writer and full-scan costs, and bounded failure simulation. Not
 evidenced: Linux/macOS runs, dedicated-host or networked runs, throughput at
 scale beyond ~4,200 records, and isolation of the serialised-commit ceiling.
@@ -88,4 +88,4 @@ Gates, thresholds, dated suppressions and blocked checks are recorded in
 [`quality-gates.md`](./quality-gates.md); setup, production fail-closed
 behavior, containers and the minimal verifier install are in
 [`setup.md`](./setup.md). Not yet evidenced: a green CI run (never executed
-here), built container images, local bandit and OWASP dependency-check runs.
+here), built container images, and OWASP dependency-check runs.

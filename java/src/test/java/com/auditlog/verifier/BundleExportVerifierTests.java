@@ -419,12 +419,16 @@ class BundleExportVerifierTests {
                 bundle, new BundleVerifier.Options(signer.publicKeyBase64(), true, 1000, 10)));
     }
 
-    // ---- frozen golden fixtures (generated independently by Python) ----
+    // ---- frozen golden fixtures (generated once by a separate implementation) ----
 
     private static Path fixtures() {
         Path dir = Path.of(System.getProperty("user.dir")).toAbsolutePath();
         while (dir != null) {
-            Path candidate = dir.resolve("python/tests/fixtures/bundle_vectors");
+            Path candidate = dir.resolve("src/test/resources/golden/bundle_vectors");
+            if (Files.isDirectory(candidate)) {
+                return candidate;
+            }
+            candidate = dir.resolve("java/src/test/resources/golden/bundle_vectors");
             if (Files.isDirectory(candidate)) {
                 return candidate;
             }

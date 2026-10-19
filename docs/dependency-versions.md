@@ -1,6 +1,6 @@
 # Dependency versions (bootstrap pins)
 
-Resolved on **2026-10-18** from official Maven Central, PyPI, and upstream
+Resolved on **2026-10-18** from official Maven Central and upstream
 project release documentation. These are scaffold pins, not a claim that the
 chosen Spring Boot line still receives community security updates.
 
@@ -25,31 +25,6 @@ patch and records the support risk rather than silently changing the chosen
 major version. Confirm the support arrangement or
 authorize a framework upgrade before production use.
 
-## Python
-
-`python/pyproject.toml` pins the direct runtime and development dependencies
-with exact `==` versions. The project declares Python `>=3.11`; the CI baseline
-is 3.11.
-
-| Package | Exact version | Purpose / source |
-|---|---:|---|
-| [Starlette](https://pypi.org/project/starlette/) | 1.8.0 | ASGI application; upstream release requires Python >=3.11. |
-| [Pydantic](https://pypi.org/project/pydantic/) | 2.14.1 | Data/schema validation stack. |
-| [cryptography](https://pypi.org/project/cryptography/) | 50.0.2 | Ed25519 signing and verification in the Python service and verifier. |
-| [rfc8785](https://pypi.org/project/rfc8785/) | 0.1.4 | Pure-Python RFC 8785 canonical serializer. |
-| [Uvicorn](https://pypi.org/project/uvicorn/) | 0.54.0 | ASGI development/runtime server. |
-| [pytest](https://pypi.org/project/pytest/) | 9.1.1 | Tests. |
-| [HTTPX2](https://pypi.org/project/httpx2/) | 2.13.1 | Starlette 1.8 test client transport; replaces deprecated HTTPX integration. |
-| [Ruff](https://pypi.org/project/ruff/) | 0.17.1 | Lint and formatting checks. |
-| [mypy](https://pypi.org/project/mypy/) | 2.4.0 | Static type checking. |
-| [jsonschema](https://pypi.org/project/jsonschema/) | 4.26.0 | Dev only: validates `docs/schemas` against golden bundle fixtures (latest per `pip index versions`, 2026-10-18; pulls attrs, referencing, rpds-py, jsonschema-specifications). |
-| [setuptools](https://pypi.org/project/setuptools/) | 84.0.0 | Pinned PEP 517 build backend. |
-
-The versions and declared Python requirements were read from each package's
-official PyPI JSON metadata endpoint on 2026-10-18. Re-resolve and update these
-pins through the dependency-upgrade process when the project intentionally
-updates its supported environment.
-
 ## Official references
 
 - [Spring Boot 3.5.16 release](https://github.com/spring-projects/spring-boot/releases/tag/v3.5.16)
@@ -60,12 +35,10 @@ updates its supported environment.
 - [Maven Central springdoc metadata](https://repo.maven.apache.org/maven2/org/springdoc/springdoc-openapi-starter-webmvc-ui/maven-metadata.xml)
 - [Maven Central SQLite JDBC metadata](https://repo.maven.apache.org/maven2/org/xerial/sqlite-jdbc/maven-metadata.xml)
 - [Maven Central JaCoCo plugin metadata](https://repo.maven.apache.org/maven2/org/jacoco/jacoco-maven-plugin/maven-metadata.xml)
-- [Python 3.11.17 release](https://www.python.org/downloads/release/python-31117/)
-- [Starlette 1.8.0 release](https://github.com/Kludex/starlette/releases/tag/1.8.0)
 
 ## Action 22 additions (2026-10-18)
 
-Versions below were read from Maven Central `maven-metadata.xml`, PyPI, and the
+Versions below were read from Maven Central `maven-metadata.xml` and the
 GitHub tags API / Docker Hub registry API on 2026-10-18; they are build/CI
 tooling, not runtime dependencies.
 
@@ -75,11 +48,5 @@ tooling, not runtime dependencies.
 | spotless-maven-plugin | 3.10.4 | Java format check |
 | spotbugs-maven-plugin / SpotBugs | 4.10.5.0 / 4.10.5 | Java static analysis |
 | dependency-check-maven | 13.0.0 | Java dependency CVE scan (profile `security-scan`) |
-| bandit | 1.9.4 | Python security static analysis |
-| pip-audit | 2.10.1 | Python dependency vulnerability scan |
-| pytest-cov | 7.1.0 | Python coverage gate |
-| python:3.11-slim-bookworm / eclipse-temurin:21-jre-jammy | digest-pinned in Dockerfiles | Container base images |
+| eclipse-temurin:21-jre-jammy | digest-pinned in Dockerfiles | Container base images |
 
-The Python base install now depends only on `cryptography` (the offline
-verifier). Starlette, Pydantic, Uvicorn and rfc8785 moved to the `service`
-extra; `dev` includes it.

@@ -104,18 +104,14 @@ layer. The fix is a separate commit so the history stays honest.
 
 - Java builder -> Java verifier round trips and re-signing with the same key prove internal
   consistency only. They are not independent crypto evidence.
-- Frozen golden fixtures (`python/tests/fixtures/bundle_vectors`) were produced by
-  `generate_bundle_vectors.py` using Python primitives and the `cryptography` package, with
-  the public RFC 8032 section 7.1 TEST 1 key (non-production; the generator asserts the RFC
-  public key and empty-message signature). Java verifies them but never regenerates them.
-  A pytest checks the files match the generator, and another validates them against the
-  schemas with `jsonschema`.
-- Python-signed edge-case fixtures (`python/tests/fixtures/python_signed`, from
-  `generate_verifier_vectors.py`) are verified by Java in `PythonInteropTests`.
-- Java-signed fixtures (`python/tests/fixtures/java_signed`) were produced once by the Java
-  service with the same public test key and random salts, and are frozen. The independent
-  Python verifier (`python/src/audit_log_service/verifier`, see `docs/python-verifier.md`)
-  verifies them in `python/tests/test_verifier.py`.
+- Frozen golden fixtures (`java/src/test/resources/golden/bundle_vectors`) were produced once by a
+  separate implementation (a since-removed Python generator using the `cryptography` package)
+  with the public RFC 8032 section 7.1 TEST 1 key (non-production). Java verifies them
+  but never regenerates them.
+- Independently signed edge-case fixtures (`java/src/test/resources/golden/independent_signed`)
+  are verified by `GoldenSignedFixtureTests`, including rejection under a wrong or missing key.
+- There is no longer a second implementation or a second verifier, so there is no live
+  cross-implementation check; independence rests on these frozen fixtures only.
 - Not proven: benchmarks beyond the single-machine run in performance.md; multi-process behaviour of the verifier; the
   Windows-skipped symlink test.
 

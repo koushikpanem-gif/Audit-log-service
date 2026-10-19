@@ -1,31 +1,27 @@
 # Architecture
 
-Two independent implementations of one contract, plus an independent offline verifier.
-Neither service calls the other. They share only the documented protocol, SQL schema files,
-JSON schemas and the cross-language test vectors in [`test-vectors/`](./test-vectors).
+One Spring Boot service plus an offline verifier. The documented protocol, SQL schema files,
+JSON schemas and the test vectors in [`test-vectors/`](./test-vectors) define the contract.
 
 ```
- client ──HTTP, X-API-Key──► Java service  (Spring Boot, port 8080) ── SQLite file A
- client ──HTTP, X-API-Key──► Python service (Starlette,   port 8000) ── SQLite file B
- signed bundle / export set ─► offline verifier (Java CLI or python -m audit_log_service.verifier)
+ client ──HTTP, X-API-Key──► Java service (Spring Boot, port 8080) ── SQLite file
+ signed bundle / export set ─► offline verifier (BundleVerifierCli)
                                needs only a pinned public key, no DB and no service
 ```
 
 One ledger per database. `ledger_meta` binds the ledger ID and schema version; a mismatch is refused.
-Either service can open a database written by the other (asserted by the cross-process tamper matrix in
-[e2e-validation.md](./e2e-validation.md)).
 
 ## Layers
 
-| Layer | Java (`java/src/main/java/com/auditlog/`) | Python (`python/src/audit_log_service/`) |
-|---|---|---|
-| Canonical JSON, v1 hashes, commitments, signing | `core` | `canonical_json.py`, `v1_hashes.py`, `payload_commitments.py`, `signing.py` |
-| Domain contracts | `domain` | `account_access.py` and request validation in `app.py` |
-| Storage (plain JDBC / sqlite3, no ORM) | `store` (`AuditRepository`, `JdbcAuditRepository`) | `store.py` |
-| Services | `service` | `ledger.py`, `redaction.py`, `archive.py`, `archive_audit.py`, `export_bundle.py`, `export_sets.py`, `account_report.py` |
-| Ledger verification | `verify` | `ledger_verifier.py` |
-| Offline evidence verification | `verifier` | `verifier/` (imports nothing from the service) |
-| HTTP, auth, config | `web`, `config` (only place Spring is used) | `app.py`, `auth.py`, `configuration.py`, `errors.py` |
+| Layer | Java (`java/src/main/java/com/auditlog/`) |
+|---|---|
+| Canonical JSON, v1 hashes, commitments, signing | `core` |
+| Domain contracts | `domain` |
+| Storage (plain JDBC, no ORM) | `store` (`AuditRepository`, `JdbcAuditRepository`) |
+| Services | `service` |
+| Ledger verification | `verify` |
+| Offline evidence verification | `verifier` |
+| HTTP, auth, config | `web`, `config` (only place Spring is used) |
 
 `core`, `domain`, `store`, `service`, `verify` and `verifier` in Java do not depend on Spring.
 

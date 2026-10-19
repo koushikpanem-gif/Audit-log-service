@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 # Tracked path -> reason it may contain key material.
 ALLOWLIST = {
     "docs/test-vectors/ed25519-checkpoint-v1.json": "labelled non-production test key",
+    "java/src/test/resources/golden/bundle_vectors/test_key_private.pem": "RFC 8032 non-production test key",
 }
 
 FORBIDDEN_NAME = re.compile(

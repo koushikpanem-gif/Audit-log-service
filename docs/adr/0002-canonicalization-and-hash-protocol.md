@@ -1,8 +1,8 @@
 # ADR-0002: Canonical JSON and v1 commitment protocol
 
 - **Status:** Implemented for strict parsing, canonicalization, and v1 hashes;
-  cross-language acceptance vectors are shared from `docs/test-vectors/`.
-- **Context:** Cross-language verifiability requires identical byte-level
+  acceptance vectors are in `docs/test-vectors/`.
+- **Context:** Independent verifiability requires identical byte-level
   encoding and immutable event semantics.
 - **Decision:** Use UTF-8, RFC 8785 JCS, SHA-256, lowercase 64-hex hashes,
   domain-separated genesis/leaf/content/chain formulas, exact v1 content keys,
@@ -20,12 +20,11 @@
   `[REDACTED]` and UTF-16-sorted redacted pointers. RFC 6901 escapes are strict;
   array indices use canonical decimal notation. Fixed salt sources are test-only.
 - **Compatibility:** Hash version 1 is immutable. Any changed encoding or
-  semantics requires a new version and compatibility plan. Both services must
-  use independently produced golden vectors.
+  semantics requires a new version and compatibility plan. Golden vectors
+  must be independently produced.
 - **Consequences:** JCS behavior, UTF-16 property ordering, ECMAScript number
   formatting, and pointer escaping are protocol obligations, not serializer
-  defaults that may vary by language. Java validates with strict Jackson
-  parsing before applying the RFC 8785 canonicalizer; Python validates JSON
-  before applying the pinned RFC 8785 serializer. `jcs-v1.json` contains
-  independent expected canonical bytes and SHA-256 values consumed by both
-  test suites.
+  defaults that may vary by language. Strict Jackson
+  parsing is applied before the RFC 8785 canonicalizer. `jcs-v1.json` contains
+  independent expected canonical bytes and SHA-256 values consumed by the
+  test suite.

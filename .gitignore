@@ -39,6 +39,8 @@ build/
 secrets/
 audit-data/
 *.pem
+# Labelled non-production test key used by the golden verifier fixtures
+!java/src/test/resources/golden/bundle_vectors/test_key_private.pem
 *.key
 *.p12
 *.pfx

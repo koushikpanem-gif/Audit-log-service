@@ -1,7 +1,5 @@
-# Two independent services, separate volumes, separate keys and ledgers.
 # Provision keys first (see docs/setup.md):
 #   python scripts/provision_keys.py --output-dir deploy/keys/java
-#   python scripts/provision_keys.py --output-dir deploy/keys/python
 # Build the jar first:  mvn -f java/pom.xml verify
 # NOTE: not exercised in the authoring environment (Docker was unavailable).
 services:
@@ -25,30 +23,7 @@ services:
     security_opt:
       - no-new-privileges:true
     restart: unless-stopped
-  audit-python:
-    build:
-      context: .
-      dockerfile: python/Dockerfile
-    environment:
-      AUDIT_LEDGER_ID: audit-python-ledger
-    ports:
-      - "127.0.0.1:8000:8000"
-    volumes:
-      - python-data:/var/lib/audit/data
-      - python-archives:/var/lib/audit/archives
-      - python-exports:/var/lib/audit/exports
-      - ./deploy/keys/python:/etc/audit/keys:ro
-    read_only: true
-    tmpfs:
-      - /tmp
-    cap_drop: [ALL]
-    security_opt:
-      - no-new-privileges:true
-    restart: unless-stopped
 volumes:
   java-data:
   java-archives:
   java-exports:
-  python-data:
-  python-archives:
-  python-exports:

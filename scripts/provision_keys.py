@@ -6,7 +6,7 @@ Creates, exclusively (never overwriting), in --output-dir:
   api-keys.json        principal -> {keyHash, roles}; hashes only
 
 Plaintext API keys are printed ONCE to stdout and never written to disk. Run it
-once per service (Java and Python use separate ledgers and keys).
+once per deployment.
 Requires only the `cryptography` package. Exit: 0 ok, 2 usage/refused.
 """
 

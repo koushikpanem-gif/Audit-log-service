@@ -1,9 +1,8 @@
-"""Black-box HTTP benchmark for the Java and Python audit-log services.
+"""Black-box HTTP benchmark for the Java audit-log service.
 
-Starts each service as an operator would (jar / uvicorn) against its own fresh
+Starts the service as an operator would (the jar) against a fresh
 database, then measures append, query, verify and export with a synthetic,
-configurable workload. Standard library only; run it with the Python that has
-the service installed (the venv) so the Python service can be launched.
+configurable workload. Standard library only.
 
 It reports whatever it measures. It has no pass/fail timing thresholds and
 invents no targets. Exit status: 0 completed with no functional errors,
@@ -28,7 +27,6 @@ import random
 import re
 import shutil
 import socket
-import sqlite3
 import statistics
 import subprocess
 import sys
@@ -40,7 +38,6 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-PYTHON_DIR = ROOT / "python"
 DEFAULT_JAR = ROOT / "java" / "target" / "audit-log-service-0.1.0-SNAPSHOT.jar"
 WRITER = {"X-API-Key": "dev-writer-only", "Content-Type": "application/json"}
 READER = {"X-API-Key": "dev-reader-only"}
@@ -133,15 +130,6 @@ def run_text(command: list[str]) -> str | None:
     return (result.stderr or result.stdout).strip() or None
 
 
-def package_version(name: str) -> str | None:
-    from importlib import metadata
-
-    try:
-        return metadata.version(name)
-    except metadata.PackageNotFoundError:
-        return None
-
-
 def sqlite_jdbc_version() -> str | None:
     match = re.search(
         r"<sqlite-jdbc\.version>([^<]+)</sqlite-jdbc\.version>",
@@ -153,9 +141,9 @@ def sqlite_jdbc_version() -> str | None:
 def git_state() -> dict[str, Any]:
     head = run_text(["git", "-C", str(ROOT), "rev-parse", "HEAD"])
     dirty = run_text(
-        ["git", "-C", str(ROOT), "status", "--porcelain", "--", "java", "python"]
+        ["git", "-C", str(ROOT), "status", "--porcelain", "--", "java"]
     )
-    return {"commit": head, "dirtyJavaOrPython": bool(dirty)}
+    return {"commit": head, "dirtyJava": bool(dirty)}
 
 
 def fsync_probe(directory: Path, iterations: int) -> dict[str, Any]:
@@ -193,16 +181,11 @@ def environment(args: argparse.Namespace, java_exe: str | None) -> dict[str, Any
         "totalRamBytes": ram,
         "benchmarkClientPython": sys.version.split()[0],
         "javaVersion": run_text([java_exe, "-version"]) if java_exe else None,
-        "pythonSqlite": sqlite3.sqlite_version,
         "sqliteJdbc": sqlite_jdbc_version(),
-        "pythonPackages": {
-            name: package_version(name)
-            for name in ("starlette", "uvicorn", "pydantic", "cryptography")
-        },
         "git": git_state(),
         "storage": {
             "workDir": str(args.work_dir),
-            "synchronous": "FULL (enforced by both services on every connection)",
+            "synchronous": "FULL (enforced on every connection)",
             "journalMode": "WAL",
             "note": "Drive type is not detected; record it by hand when comparing runs.",
         },
@@ -372,27 +355,13 @@ class Service:
         }
 
     def command(self) -> list[str]:
-        if self.kind == "java":
-            (self.home / "tmp").mkdir(parents=True, exist_ok=True)
-            return [
-                self.args.java,
-                f"-Djava.io.tmpdir={self.home / 'tmp'}",
-                "-jar",
-                str(self.args.jar),
-                f"--server.port={self.port}",
-            ]
+        (self.home / "tmp").mkdir(parents=True, exist_ok=True)
         return [
-            self.args.python,
-            "-m",
-            "uvicorn",
-            "audit_log_service.app:create_app",
-            "--factory",
-            "--host",
-            "127.0.0.1",
-            "--port",
-            str(self.port),
-            "--log-level",
-            "warning",
+            self.args.java,
+            f"-Djava.io.tmpdir={self.home / 'tmp'}",
+            "-jar",
+            str(self.args.jar),
+            f"--server.port={self.port}",
         ]
 
     def start(self, timeout: float = 180) -> None:
@@ -400,7 +369,7 @@ class Service:
         log = (self.home / f"{self.kind}.log").open("wb")
         self.process = subprocess.Popen(
             self.command(),
-            cwd=PYTHON_DIR,
+            cwd=ROOT,
             env={**os.environ, **self.env},
             stdout=log,
             stderr=subprocess.STDOUT,
@@ -866,9 +835,7 @@ def markdown(report: dict[str, Any]) -> str:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    parser.add_argument(
-        "--services", default="java,python", help="comma list of java,python"
-    )
+    parser.add_argument("--services", default="java", help="only java is supported")
     parser.add_argument(
         "--events",
         type=int,
@@ -900,7 +867,6 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--seed", type=int, default=20261018)
     parser.add_argument("--jar", type=Path, default=DEFAULT_JAR)
     parser.add_argument("--java", default=shutil.which("java") or "java")
-    parser.add_argument("--python", default=sys.executable)
     parser.add_argument(
         "--work-dir",
         type=Path,
@@ -920,8 +886,8 @@ def validate(args: argparse.Namespace) -> str | None:
     args.service_list = [
         item.strip() for item in args.services.split(",") if item.strip()
     ]
-    if not args.service_list or set(args.service_list) - {"java", "python"}:
-        return "--services must be java, python or java,python"
+    if not args.service_list or set(args.service_list) - {"java"}:
+        return "--services must be java"
     positives = {
         "events": args.events,
         "read-concurrency": args.read_concurrency,
