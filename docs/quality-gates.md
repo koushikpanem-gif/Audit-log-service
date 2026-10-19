@@ -40,7 +40,7 @@ text block.
 ## Blocked / not verified in the authoring environment
 
 - OWASP dependency-check (NVD download) was not run locally; CI needs the
-  `NVD_API_KEY` secret.
+  `NVD_API_KEY` secret. Without the secret the CI job skips the scan with a visible warning (an empty key is rejected by the plugin); add the secret to enforce the gate.
 - Docker was unavailable: images/compose are unbuilt; Dockerfile HEALTHCHECK for
   the Java image uses bash `/dev/tcp` and is untested.
 - `ci.yml` was not executed or schema-validated by a runner.
