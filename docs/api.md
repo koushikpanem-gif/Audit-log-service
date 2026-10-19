@@ -42,7 +42,13 @@ There is no event PUT, PATCH or DELETE. Verified in both services' route tables 
 
 Request 256 KiB, payload 64 KiB, depth 10, scalar leaves 500; query page 50 (max 500); small export 1000 records / 8 MiB;
 export set 1,000,000 records; report cap 10,000 records; `occurredAt` at most 300 s in the future. Caller-supplied
-timestamps are rejected with 422. Reserved types `RECORD_REDACTED`, `RECORDS_ARCHIVED`, `BUNDLE_EXPORTED`,
+timestamps are rejected with 422.
+
+**Timestamp choice (assignment: "caller-supplied or server-assigned; document your choice").** The authoritative
+`timestamp` (hashed as `recordedAt`) is **server-assigned**, UTC, microsecond precision, never earlier than the previous
+record. A caller cannot set it, so it cannot be back-dated. The caller may supply an optional `occurredAt` (when the event
+happened in the source system), normalized to UTC and limited to 300 s of future skew; it is stored and hashed but is not
+used for ordering, retention or time-range filters. Reserved types `RECORD_REDACTED`, `RECORDS_ARCHIVED`, `BUNDLE_EXPORTED`,
 `COMPLIANCE_REPORT_GENERATED` and source `system` cannot be submitted. Environment variables are listed in
 [configuration-and-signing.md](./configuration-and-signing.md) and [python-service.md](./python-service.md).
 

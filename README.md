@@ -8,7 +8,9 @@ account-access report, built on **unconfirmed assumptions**; no stakeholder has 
 
 This is a prototype for engineer review. It is tamper-**evident**, not tamper-proof: it has no
 external witness, KMS or WORM storage, and redaction gives no physical-erasure guarantee. Nothing
-has been signed off; the attestation in [`docs/attestation-template.md`](./docs/attestation-template.md)
+has been signed off. The root [`ATTESTATION.md`](./ATTESTATION.md) holds the engineer's personal
+attestation text required by the assignment; the engineering review record in
+[`docs/attestation-template.md`](./docs/attestation-template.md)
 is for the engineer to complete.
 
 Start with [`ENGINEERING_SUMMARY.md`](./ENGINEERING_SUMMARY.md), then:
@@ -24,7 +26,7 @@ Start with [`ENGINEERING_SUMMARY.md`](./ENGINEERING_SUMMARY.md), then:
 | Threat model, verification, redaction, archives, exports | [`docs/threat-model.md`](./docs/threat-model.md), [`docs/verification.md`](./docs/verification.md), [`docs/redaction.md`](./docs/redaction.md), [`docs/retention-archive.md`](./docs/retention-archive.md), [`docs/export-bundles.md`](./docs/export-bundles.md), [`docs/export-sets.md`](./docs/export-sets.md) |
 | AI use | [`AI_USAGE_LOG.md`](./AI_USAGE_LOG.md) |
 
-The requirements are in [`docs/BUILD_REQUIREMENTS.txt`](./docs/BUILD_REQUIREMENTS.txt). Dependency
+The build brief (the engineer's detailed requirements, which add a stack and protocol beyond the assignment PDF) is in [`docs/BUILD_REQUIREMENTS.txt`](./docs/BUILD_REQUIREMENTS.txt). Dependency
 pins and their sources are in [`docs/dependency-versions.md`](./docs/dependency-versions.md).
 
 ## Repository layout
@@ -37,8 +39,7 @@ pins and their sources are in [`docs/dependency-versions.md`](./docs/dependency-
   `benchmark.py`, `demo.ps1` (run on Windows) and `demo.sh` (never executed).
 - `.github/workflows/` — CI (never run by a runner; see [`docs/quality-gates.md`](./docs/quality-gates.md)).
 
-The root-level `pom.xml` and `src/` are a pre-existing starter. They are kept
-unchanged and are not used by the new `java/` or `python/` builds.
+The assignment PDF is kept locally in `project-doc/` and is not tracked.
 
 Exports: `GET /audit/export` returns one signed small v1 bundle (limits `AUDIT_EXPORT_MAX_RECORDS`,
 default 1000, and `AUDIT_EXPORT_MAX_BYTES`, default 8 MiB; larger selections get 422, never a
@@ -50,6 +51,85 @@ Checkpoint key/configuration contracts and limits are documented in
 Do not use the clearly marked test-only Ed25519 fixture outside tests.
 SQLite schema and transaction decisions are recorded in
 [`docs/adr/0003-storage-and-transaction-model.md`](./docs/adr/0003-storage-and-transaction-model.md).
+
+## Quick start: run locally in dev mode
+
+Dev mode is the default (`AUDIT_ENV=dev`). On first start each service creates its own SQLite database and Ed25519
+signing key under `audit-data/` (relative to the directory you start it from; git-ignored). No configuration or key files
+are needed. Production mode is stricter and is described in [`docs/setup.md`](./docs/setup.md).
+
+**Prerequisites:** JDK 21, Maven 3.9+, Python 3.11 or newer. The Java service and the Python service are independent;
+run either or both.
+
+### 1. Java service (port 8080)
+
+From the repository root (PowerShell or Unix shell):
+
+```sh
+mvn -f java/pom.xml spring-boot:run
+```
+
+On Windows PowerShell use `mvn -f java\pom.xml spring-boot:run`. To use another port, add
+`-Dspring-boot.run.arguments=--server.port=8081`. Alternatively, build once and run the jar:
+
+```sh
+mvn -f java/pom.xml -DskipTests package
+java -jar java/target/audit-log-service-0.1.0-SNAPSHOT.jar
+```
+
+Check: `http://localhost:8080/health` returns `{"status":"UP"}`. API docs: `http://localhost:8080/docs`; OpenAPI:
+`/openapi.json`.
+
+### 2. Python service (port 8000)
+
+Windows PowerShell:
+
+```powershell
+Set-Location python
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -e ".[dev]"
+python -m audit_log_service
+```
+
+Unix shell:
+
+```sh
+cd python
+python3.11 -m venv .venv
+. .venv/bin/activate
+python -m pip install -e '.[dev]'
+python -m audit_log_service
+```
+
+Check: `http://localhost:8000/health`. Its database is `python/audit-data/audit.db`, separate from the Java one.
+
+### 3. Try it
+
+Dev sample API keys (public, development only): `dev-writer-only`, `dev-reader-only`, `dev-auditor-only`, `dev-admin-only`
+(the admin key has every role). Send one as the `X-API-Key` header.
+
+```sh
+curl -X POST http://localhost:8080/audit/events -H "X-API-Key: dev-writer-only" -H "Content-Type: application/json" \
+  -d '{"eventType":"USER_LOGIN","actorId":"alice","resourceType":"session","resourceId":"s-1","payload":{"ip":"10.0.0.1"}}'
+curl -H "X-API-Key: dev-reader-only" "http://localhost:8080/audit/events?actorId=alice"
+curl -H "X-API-Key: dev-auditor-only" http://localhost:8080/audit/verify
+```
+
+Use port 8000 for the Python service. On Windows PowerShell, call `curl.exe` (not the `curl` alias) or use `Invoke-RestMethod`.
+`scripts/demo.ps1` runs a scripted Scenario A/B/C walkthrough with tampering against both services.
+
+### 4. Reset to a clean state
+
+Stop the service, then delete the `audit-data/` folder it created (or just `audit.db`, `audit.db-wal`, `audit.db-shm`).
+Do not delete rows by hand: triggers block row deletion by design.
+
+### Troubleshooting
+
+- **Port in use:** change the Java port as above; Python's port is fixed at 8000 in `python/src/audit_log_service/__main__.py`
+  (or run `python -m uvicorn audit_log_service.app:create_app --factory --port 8001`).
+- **`401`:** missing or wrong `X-API-Key`. **`403`:** the key's role cannot use that endpoint (see [`docs/api.md`](./docs/api.md)).
+- **Different working directory = different database:** the DB path is relative to where you start the service.
 
 ## Local checks
 
@@ -67,11 +147,8 @@ mypy src
 python -m pytest
 ```
 
-To launch the Java service, run `mvn -f java\pom.xml spring-boot:run` from the
-repository root; its health endpoint is `http://localhost:8080/health`, with
-OpenAPI at `/openapi.json` and the docs UI at `/docs`. To launch Python, in a
-separate terminal run `Set-Location python` and `python -m audit_log_service`;
-its health endpoint is `http://localhost:8000/health`.
+To launch the services, see the Quick start above. Health endpoints: Java `http://localhost:8080/health`
+(OpenAPI `/openapi.json`, docs UI `/docs`), Python `http://localhost:8000/health`.
 
 ### Unix shell
 
@@ -87,15 +164,11 @@ mypy src
 python -m pytest
 ```
 
-To launch Java, run `mvn -f java/pom.xml spring-boot:run` from the repository
-root; its health endpoint is `http://localhost:8080/health`, with OpenAPI at
-`/openapi.json` and the docs UI at `/docs`. To launch Python in a separate
-terminal, run `cd python` and `python -m audit_log_service`; its health
-endpoint is `http://localhost:8000/health`.
+To launch the services, see the Quick start above.
 
 The current machine's installed Python may differ from 3.11; the CI workflow
-uses Python 3.11. The Spring Boot 3.5 line is retained to match the assignment,
-but its open-source support ended on 2026-06-30. See the dependency record and
+uses Python 3.11. The Spring Boot 3.5 line is my stack choice (not an assignment
+requirement), but its open-source support ended on 2026-06-30. See the dependency record and
 resolve support requirements before production use.
 
 ## Quality gates, setup and packaging

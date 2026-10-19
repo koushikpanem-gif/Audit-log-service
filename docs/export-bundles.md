@@ -5,6 +5,18 @@ contract in the fix pass). Selections over the configured limits are rejected ex
 with no partial output; larger selections use the export-set protocol in
 [export-sets.md](./export-sets.md).
 
+## Scope of "export all records"
+
+The assignment asks to export "all records" for a `resourceId` or `actorId`. This
+implementation exports all **matching retained live records**. Records already
+archived under the retention policy are not included (`completeness.scope =
+"MATCHING_RETAINED_LIVE_RECORDS"`, `archivedRecordsExcluded: true`). This is a
+deliberate retention-policy choice: archiving clears business data from the live
+store, so it cannot be re-exported from there. A historical export spanning archives
+is **not implemented**; archived data lives in signed archive bundles verified by the
+archive audit. A recipient must not read a bundle as proof that no older archived
+records exist for the selection.
+
 ## Schemas
 
 JSON Schema (draft 2020-12) files in [`schemas/`](./schemas): `selection`, `completeness`,

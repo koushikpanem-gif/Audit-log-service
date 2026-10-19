@@ -1,6 +1,7 @@
-# Engineer attestation template
+# Engineering review record (template)
 
-**Template status:** Unsigned. All bracketed personal fields are placeholders.
+This is the engineer's review record, separate from the root `ATTESTATION.md` the assignment requires.
+**Template status:** Unfilled. All bracketed personal fields are placeholders.
 This is not a statement of approval, testing, compliance, or sign-off.
 
 - Engineer name: `[ENGINEER NAME]`

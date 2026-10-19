@@ -8,7 +8,7 @@ chosen Spring Boot line still receives community security updates.
 
 | Component | Exact version | Source / compatibility basis |
 |---|---:|---|
-| Java runtime/toolchain | 21 | Assignment requires Java 21; local validation runtime is Eclipse Temurin 21.0.12.1. |
+| Java runtime/toolchain | 21 | Engineer's choice (Java 21 LTS; the assignment PDF does not mandate a stack); local validation runtime is Eclipse Temurin 21.0.12.1. |
 | Spring Boot parent | 3.5.16 | Latest stable `3.5.x` in Maven Central metadata on resolution date; Java 21 is within the line's supported runtime range. |
 | springdoc OpenAPI WebMVC UI | 2.8.17 | Latest stable `2.8.x` in Maven Central metadata; springdoc v2 is for Spring Boot 3.x. |
 | SQLite JDBC | 3.53.4.0 | Latest stable release in Maven Central metadata on resolution date. |
@@ -18,9 +18,11 @@ chosen Spring Boot line still receives community security updates.
 
 Spring Boot 3.5.16 was the final 3.5.x open-source release and that support
 ended on 2026-06-30. Commercial support may differ; no support contract is
-assumed. The assignment explicitly requires Spring Boot 3, so this scaffold
-uses the final 3.5 patch and records the support risk rather than silently
-changing the requested major version. Confirm the support arrangement or
+assumed. The assignment PDF does not mandate Spring Boot, Java, Python, JCS or
+Ed25519; the Spring Boot 3 line is the engineer's stack choice (rationale in
+[ADR-0001](./adr/0001-platform-and-layout.md)). This scaffold uses the final 3.5
+patch and records the support risk rather than silently changing the chosen
+major version. Confirm the support arrangement or
 authorize a framework upgrade before production use.
 
 ## Python

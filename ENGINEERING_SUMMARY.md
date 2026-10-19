@@ -1,8 +1,27 @@
 # Engineering summary
 
-Prepared by the AI assistant for engineer review. **This is not a sign-off.** The engineer owns the design and
-must complete the attestation in [docs/attestation-template.md](./docs/attestation-template.md), which is deliberately unsigned.
-Nothing has been pushed, published or submitted. Detailed per-action decisions are in [AI_USAGE_LOG.md](./AI_USAGE_LOG.md).
+Prepared by the AI assistant for engineer review. **This is not a sign-off.** The root [ATTESTATION.md](./ATTESTATION.md) carries
+the engineer's attestation text and details required by the assignment; the engineer must still own and stand behind it. The
+engineering review record, [docs/attestation-template.md](./docs/attestation-template.md), is deliberately unfilled: only the
+engineer can record what they actually reviewed and approved.
+Nothing has been published or submitted by the assistant. Detailed per-action decisions are in [AI_USAGE_LOG.md](./AI_USAGE_LOG.md).
+
+## Choices that are mine, not assignment requirements
+
+The assignment PDF asks for Scenarios A, B and C plus deliverables; it does not mandate Java, Spring Boot, Python, RFC 8785 JCS
+or Ed25519. Those, the second implementation and the independent verifier are my design choices
+([adr/0001](./docs/adr/0001-platform-and-layout.md)), made so a recipient can verify without our code and so the protocol is
+shown to be specified rather than incidental. The cost is double the surface to maintain and defend.
+
+## Scope boundaries to state in the defense
+
+- **"Export all records" means all matching retained live records.** Archived records are excluded and the bundle says so
+  ([export-bundles.md](./docs/export-bundles.md)). A historical export spanning archives is not implemented; this is a
+  retention-policy choice.
+- **Detection is conditional.** Modification or deletion is detected only while a trusted signed checkpoint at or beyond the
+  affected record survives and the key is uncompromised. Uncheckpointed tail changes and deletion together with the covering
+  checkpoints are not detected (`LedgerVerifierTests`). See [live-defense.md](./docs/live-defense.md).
+- **Timestamp:** server-assigned `timestamp`; optional caller `occurredAt` ([api.md](./docs/api.md)).
 
 ## What was delivered
 
@@ -81,4 +100,5 @@ Adding a `channel` value was rehearsed and reverted; results are in [docs/live-d
 1. Review the design and the open Scenario C questions with the business owner.
 2. Decide on disk-full handling, Spring Boot support and the pre-existing root starter (`pom.xml`, `src/`, untracked and unused).
 3. Run CI, build the images, and run bandit and OWASP dependency-check where they work.
-4. Complete and sign the attestation personally.
+4. Confirm the personal details in `ATTESTATION.md`, fill in `docs/attestation-template.md` with what you actually reviewed, and
+   keep the submission date accurate.
