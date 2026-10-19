@@ -37,6 +37,8 @@ There is no event PUT, PATCH or DELETE. Verified in the route table (`AuditContr
 401 missing/invalid key, 403 role, 404 missing, 409 conflict, 413 size, 422 invalid input, 503 database busy
 (generic message). A disk-full condition currently surfaces as a generic 500 (see
 [performance.md](./performance.md)); that is an open engineer decision.
+Malformed JSON returns 422 `INVALID_JSON`; valid JSON with missing or incorrectly typed request fields returns
+422 `INVALID_INPUT`.
 
 ## Limits (defaults)
 

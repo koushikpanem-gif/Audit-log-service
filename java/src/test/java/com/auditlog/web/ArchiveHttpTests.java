@@ -65,6 +65,10 @@ class ArchiveHttpTests {
                         .contentType(MediaType.APPLICATION_JSON).content("{\"dryRun\":false,\"x\":1}"))
                 .andExpect(status().isUnprocessableEntity());
         mockMvc.perform(post("/audit/admin/archive").header("X-API-Key", ADMIN)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"dryRun\":\"yes\"}"))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.error.code").value("INVALID_INPUT"));
+        mockMvc.perform(post("/audit/admin/archive").header("X-API-Key", ADMIN)
                         .contentType(MediaType.APPLICATION_JSON).content("{\"dryRun\":true}"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("NOTHING_TO_ARCHIVE")));

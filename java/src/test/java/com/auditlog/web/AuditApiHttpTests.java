@@ -281,6 +281,84 @@ class AuditApiHttpTests {
     }
 
     @Test
+    void rejectsNonStringEventFieldsWithoutAppendingToTheLedger() throws Exception {
+        long headBefore = ledgerHead();
+        String[] bodies = {
+            "{\"eventType\":5,\"actorId\":\"strict-types\",\"resourceType\":\"doc\","
+                    + "\"resourceId\":\"r\",\"payload\":{}}",
+            "{\"eventType\":\"T\",\"actorId\":5,\"resourceType\":\"doc\","
+                    + "\"resourceId\":\"r\",\"payload\":{}}",
+            "{\"eventType\":\"T\",\"actorId\":\"strict-types\",\"resourceType\":5,"
+                    + "\"resourceId\":\"r\",\"payload\":{}}",
+            "{\"eventType\":\"T\",\"actorId\":\"strict-types\",\"resourceType\":\"doc\","
+                    + "\"resourceId\":5,\"payload\":{}}"
+        };
+        for (String body : bodies) {
+            mockMvc.perform(post("/audit/events").header("X-API-Key", WRITER)
+                            .contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isUnprocessableEntity())
+                    .andExpect(jsonPath("$.error.code").value("INVALID_INPUT"))
+                    .andExpect(jsonPath("$.error.details").isArray());
+        }
+        org.junit.jupiter.api.Assertions.assertEquals(headBefore, ledgerHead());
+    }
+
+    @Test
+    void returnsStructuredNotFoundForUnknownRoutes() throws Exception {
+        mockMvc.perform(get("/no-such-route").header("X-API-Key", READER))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error.code").value("NOT_FOUND"))
+                .andExpect(jsonPath("$.error.details").isArray());
+    }
+
+    @Test
+    void paginatesFiveEventsAcrossTwoCursorPagesAndAOneItemLastPage() throws Exception {
+        String actor = "cursor-pages-" + UUID.randomUUID();
+        List<Long> sequences = new ArrayList<>();
+        for (int index = 0; index < 5; index++) {
+            MvcResult appended = append(
+                    "CURSOR_PAGE_EVENT", actor, "cursor-resource", "{\"n\":" + index + "}");
+            sequences.add(objectMapper.readTree(appended.getResponse().getContentAsString())
+                    .path("seq").asLong());
+        }
+
+        MvcResult firstResult = mockMvc.perform(get("/audit/events").header("X-API-Key", READER)
+                        .param("actorId", actor).param("limit", "2").param("order", "asc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items", hasSize(2)))
+                .andReturn();
+        JsonNode firstPage = objectMapper.readTree(firstResult.getResponse().getContentAsString());
+        String firstCursor = firstPage.path("nextCursor").textValue();
+
+        MvcResult secondResult = mockMvc.perform(get("/audit/events").header("X-API-Key", READER)
+                        .param("actorId", actor).param("limit", "2").param("order", "asc")
+                        .param("cursor", firstCursor))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items", hasSize(2)))
+                .andReturn();
+        JsonNode secondPage = objectMapper.readTree(secondResult.getResponse().getContentAsString());
+        String secondCursor = secondPage.path("nextCursor").textValue();
+
+        MvcResult lastResult = mockMvc.perform(get("/audit/events").header("X-API-Key", READER)
+                        .param("actorId", actor).param("limit", "2").param("order", "asc")
+                        .param("cursor", secondCursor))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items", hasSize(1)))
+                .andExpect(jsonPath("$.nextCursor").doesNotExist())
+                .andReturn();
+
+        JsonNode lastPage = objectMapper.readTree(lastResult.getResponse().getContentAsString());
+        List<JsonNode> pages = List.of(
+                firstPage.path("items").get(0), firstPage.path("items").get(1),
+                secondPage.path("items").get(0), secondPage.path("items").get(1),
+                lastPage.path("items").get(0));
+        for (int index = 0; index < pages.size(); index++) {
+            org.junit.jupiter.api.Assertions.assertEquals(
+                    sequences.get(index), pages.get(index).path("seq").asLong());
+        }
+    }
+
+    @Test
     void usesStableKeysetCursorsBoundToFiltersAndOrderAndSupportsDescending() throws Exception {
         String actor = "cursor-" + UUID.randomUUID();
         MvcResult first = append("CURSOR_EVENT", actor, "cursor-resource", "{\"n\":1}");
@@ -431,6 +509,15 @@ class AuditApiHttpTests {
                         .content(eventJson(type, actor, resourceId, payload)))
                 .andExpect(status().isCreated())
                 .andReturn();
+    }
+
+    private long ledgerHead() throws Exception {
+        String body = mockMvc.perform(get("/audit/verify").header("X-API-Key", AUDITOR))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        return objectMapper.readTree(body).path("headSeq").asLong();
     }
 
     private static String eventJson(String type, String actor, String resourceId, String payload) {

@@ -13,6 +13,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
@@ -70,7 +71,7 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ApiErrorResponse> unreadableBody() {
-        return error(422, "INVALID_REQUEST", "Request body does not match the required schema");
+        return error(422, "INVALID_INPUT", "Request body does not match the required schema");
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)
@@ -91,6 +92,11 @@ public class ApiExceptionHandler {
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     public ResponseEntity<ApiErrorResponse> methodNotAllowed() {
         return error(405, "METHOD_NOT_ALLOWED", "HTTP method is not supported for this resource");
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiErrorResponse> notFound() {
+        return error(404, "NOT_FOUND", "The requested resource was not found");
     }
 
     @ExceptionHandler(StorageBusyException.class)
