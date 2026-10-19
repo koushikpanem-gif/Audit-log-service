@@ -1,9 +1,11 @@
 # Engineering summary
 
-Prepared by the AI assistant for engineer review. **This is not a sign-off.** The root [ATTESTATION.md](./ATTESTATION.md) carries
-the engineer's attestation text and details required by the assignment; the engineer must still own and stand behind it. The
-engineering review record, [docs/attestation-template.md](./docs/attestation-template.md), is deliberately unfilled: only the
-engineer can record what they actually reviewed and approved.
+Prepared with AI assistance under engineer oversight. On 2026-10-19, Koushik Panem confirmed that he thoroughly reviewed
+every commit, repeatedly prompted for the desired result, and intervened throughout development. The dated
+[engineering review record](./docs/engineering-review.md) records that confirmation and its scope; it is not an independently
+witnessed review or production sign-off. The root [ATTESTATION.md](./ATTESTATION.md) records the engineer's personal attestation.
+The optional [review template](./docs/attestation-template.md) remains available for more detailed review notes; its unfilled
+status is not evidence that human review did not occur.
 Nothing has been published or submitted by the assistant. Detailed per-action decisions are in [AI_USAGE_LOG.md](./AI_USAGE_LOG.md).
 
 ## Choices that are mine, not assignment requirements
@@ -95,8 +97,7 @@ Adding a `channel` value was rehearsed and reverted; results are in [docs/live-d
 
 ## Engineer actions remaining
 
-1. Review the design and the open Scenario C questions with the business owner.
+1. Seek business-owner input on the open Scenario C questions; engineer commit review is recorded in `docs/engineering-review.md`.
 2. Decide on disk-full handling and Spring Boot support.
 3. Check the CI run, build the images, and run OWASP dependency-check with an NVD key.
-4. Confirm the personal details in `ATTESTATION.md`, fill in `docs/attestation-template.md` with what you actually reviewed, and
-   keep the submission date accurate.
+4. Keep the personal details and actual submission date in `ATTESTATION.md` accurate. Add more detailed review notes if available, and record review of subsequent changes separately.

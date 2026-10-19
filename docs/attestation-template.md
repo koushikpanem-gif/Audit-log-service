@@ -4,6 +4,10 @@ This is the engineer's review record, separate from the root `ATTESTATION.md` th
 **Template status:** Unfilled. All bracketed personal fields are placeholders.
 This is not a statement of approval, testing, compliance, or sign-off.
 
+The engineer's confirmed commit-review process is recorded separately in
+[engineering-review.md](./engineering-review.md). This optional template remains
+available for detailed notes; its unfilled status does not mean no review occurred.
+
 - Engineer name: `[ENGINEER NAME]`
 - Role/team: `[ROLE / TEAM]`
 - Review date: `[YYYY-MM-DD]`

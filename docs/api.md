@@ -3,6 +3,9 @@
 The service listens on port 8080. Authentication is the `X-API-Key` header.
 Machine-readable contracts: `GET /openapi.json` and the JSON Schemas in [`schemas/`](./schemas).
 The `/docs` route is the springdoc UI.
+Swagger UI automatically loads `/openapi.json` through its public configuration endpoint,
+`/openapi.json/swagger-config`. Opening the UI requires no API key; protected operations still
+require `X-API-Key` through the UI's **Authorize** button.
 
 ## Roles and routes
 

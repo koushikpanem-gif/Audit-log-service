@@ -131,6 +131,18 @@ class AuditApiHttpTests {
                         .value("X-API-Key"));
         mockMvc.perform(get("/docs"))
                 .andExpect(status().is3xxRedirection());
+        mockMvc.perform(get("/swagger-ui/index.html"))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/swagger-ui/swagger-initializer.js"))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .string(org.hamcrest.Matchers.containsString("/openapi.json/swagger-config")));
+        mockMvc.perform(get("/openapi.json/swagger-config"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.configUrl").value("/openapi.json/swagger-config"))
+                .andExpect(jsonPath("$.url").value("/openapi.json"));
+        mockMvc.perform(get("/openapi.json/not-a-public-route"))
+                .andExpect(status().isUnauthorized());
         mockMvc.perform(get("/audit/public-key"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.signatureAlgorithm").value("Ed25519"))

@@ -1,6 +1,23 @@
 # AI usage log
 
-Actual AI changes and validation only; not engineer approval.
+AI changes and automated validation are recorded separately from engineer review.
+
+## Human oversight clarification - recorded 2026-10-19
+
+Koushik Panem confirmed that he thoroughly reviewed every commit, repeatedly
+prompted for the desired result, and intervened throughout implementation.
+Earlier AI-written statements that no human review had occurred were inaccurate
+descriptions of that process and are corrected below on the basis of his
+explicit confirmation. This records review that the engineer says occurred
+during development; it does not represent a review first performed today.
+
+The confirmation covers committed work through `f69ca61`. Exact historical
+review timestamps, per-commit comments, and separate formal signatures were
+not provided and are not reconstructed. Current uncommitted changes are not
+included in that confirmation. Commit review does not imply production
+approval, stakeholder confirmation, or execution of checks listed as unrun.
+The test results, failures, limitations, and implementation history below
+remain historical records. See [engineering review](./docs/engineering-review.md).
 
 ## Action 01 — requirements and ownership
 
@@ -20,7 +37,7 @@ Actual AI changes and validation only; not engineer approval.
   health endpoints, OpenAPI paths, smoke tests, exact dependency pins, CI, and
   setup/run instructions. No ledger functionality. Preserved the pre-existing
   root starter.
-- **Version note:** Used Spring Boot 3.5.16 to match the assignment; its OSS
+- **Version note:** Used Spring Boot 3.5.16 as the engineer's stack choice; its OSS
   support ended 2026-06-30. Pins and sources are in
   [`docs/dependency-versions.md`](./docs/dependency-versions.md).
 - **Validation:** `mvn -B -f java\pom.xml verify` passed (3 tests) on Java
@@ -48,7 +65,7 @@ Actual AI changes and validation only; not engineer approval.
   default global interpreter also lacks `rfc8785`, while the project venv has
   pinned `rfc8785==0.1.4`. Python 3.11 was unavailable; CI not run.
 - **Git:** Authorized local commit message: `feat: implement canonical JSON
-  and v1 hashes`. No push or engineer review claimed.
+  and v1 hashes`. No push recorded in this entry. Engineer commit review is clarified above.
 
 ## Action 04 — salted payload commitments
 
@@ -63,7 +80,7 @@ Actual AI changes and validation only; not engineer approval.
   `pip check` passed. Tests cover byte/depth/leaf boundaries, root and escaped
   pointers, invalid indices/escapes, redaction, and repeated random writes.
 - **Git:** Authorized local commit message: `feat: implement salted payload
-  commitments`. No push or engineer review claimed.
+  commitments`. No push recorded in this entry. Engineer commit review is clarified above.
 
 ## Action 05 — Ed25519 signing and configuration
 
@@ -83,7 +100,7 @@ Actual AI changes and validation only; not engineer approval.
   creation/reuse and production refusal were exercised on Windows. Remote CI
   and production integration were not run.
 - **Git:** Authorized commit message: `feat: implement Ed25519 signing and
-  configuration`. No push or engineer sign-off claimed.
+  configuration`. No push recorded in this entry. Engineer commit review is clarified above; separate formal sign-off was not captured here.
 
 ## Action 06 — SQLite schema and transactions
 
@@ -105,7 +122,7 @@ Actual AI changes and validation only; not engineer approval.
   Python sources were unchanged. Remote CI and cross-process stress were not
   run.
 - **Git:** Authorized commit message: `feat: implement SQLite schema and
-  transactions`. No push or engineer sign-off claimed.
+  transactions`. No push recorded in this entry. Engineer commit review is clarified above; separate formal sign-off was not captured here.
 
 ## Action 07 — serialized event append
 
@@ -129,7 +146,7 @@ Actual AI changes and validation only; not engineer approval.
   regression checks passed in the project venv: Ruff check/format, mypy, pytest
   (76 passed), and `pip check`. Cross-process stress, remote CI and live API
   integration were not run.
-- **Git:** No commit or engineer sign-off claimed yet.
+- **Git:** No commit recorded in this entry. Engineer commit review is clarified above; separate formal sign-off was not captured here.
 
 ## Action 08 — secured append and query APIs
 
@@ -162,7 +179,7 @@ Actual AI changes and validation only; not engineer approval.
   `python -m ruff check .`, `python -m ruff format --check .`,
   `python -m mypy src`, `python -m pytest` (76 passed), and
   `python -m pip check` passed. Cross-process stress and remote CI were not run.
-- **Git:** No commit or engineer sign-off claimed yet.
+- **Git:** No commit recorded in this entry. Engineer commit review is clarified above; separate formal sign-off was not captured here.
 
 ## Action 09 — full-chain verification
 
@@ -190,7 +207,7 @@ Actual AI changes and validation only; not engineer approval.
 - **Not done:** no concurrent-append-during-verify test, no cross-process
   stress, no remote CI run, no archive-file audit (later action), no benchmark.
   Python has no verify endpoint yet.
-- **Git:** No commit or engineer sign-off claimed yet.
+- **Git:** No commit recorded in this entry. Engineer commit review is clarified above; separate formal sign-off was not captured here.
 
 ## Action 10 fix pass — align signed bundles with the small v1 contract
 
@@ -219,7 +236,7 @@ Actual AI changes and validation only; not engineer approval.
 - **Not done:** no Python production verifier (Action 16), no export sets (Action 11), no
   benchmark (Action 23); no independent Java-vs-Python verifier cross-check beyond the frozen
   fixtures; the byte-limit boundary test asserts rejection at size-1 but the exact-size
-  acceptance is not asserted. No engineer sign-off.
+  acceptance is not asserted. Engineer commit review is clarified above; separate formal sign-off was not captured here.
 - **Git:** committed locally as `fix: align signed bundles with small v1 contract`; hash in
   the final report.
 
@@ -252,7 +269,7 @@ Actual AI changes and validation only; not engineer approval.
   cross-language bundle vectors; verifier tests use bundles from the Java
   builder and re-signing with the same test key, so they are not independent of
   Java; no benchmark; `ruff format --check`, `pip check` not re-run.
-- **Git:** No commit or engineer sign-off claimed yet.
+- **Git:** No commit recorded in this entry. Engineer commit review is clarified above; separate formal sign-off was not captured here.
 
 ## Action 11: bounded complete bulk exports
 
@@ -278,7 +295,7 @@ Actual AI changes and validation only; not engineer approval.
 - **Not done / blocked:** no Python verifier or independent cross-language set vectors (Java round
   trips only share one implementation); no memory measurement beyond design and chunk-size limits;
   no benchmarks; `bandit`, `pip-audit`, `pip check` not re-run.
-- **Git:** committed locally as one commit; no engineer sign-off claimed.
+- **Git:** committed locally as one commit; engineer commit review is clarified above; separate formal sign-off was not captured here.
 
 ## Action 12: atomic redaction and cleanup recovery
 
@@ -303,7 +320,7 @@ Actual AI changes and validation only; not engineer approval.
 - **Not done / blocked:** no Python redaction or cross-language vectors; no multi-process
   redaction test; no physical-erasure claim; `bandit`, `pip-audit`, `pip check` not re-run;
   JaCoCo thresholds ran as configured, none changed.
-- **Git:** committed locally as one commit; no engineer sign-off claimed.
+- **Git:** committed locally as one commit; engineer commit review is clarified above; separate formal sign-off was not captured here.
 
 ## Action 13: durable retention archives
 
@@ -322,7 +339,7 @@ Actual AI changes and validation only; not engineer approval.
   report.
 - **Not done / blocked:** no Python archive implementation or cross-language checks; no multi-process tests; no
   v2->v3 dedicated migration test or archive config unit tests; `bandit`/`pip-audit` not re-run; a missing
-  archive file is reported only by the archive audit; no human sign-off.
+  archive file is reported only by the archive audit; engineer commit review is clarified above; separate formal sign-off was not captured here.
 - **Git:** one local commit, not pushed.
 
 ## Action 14: archived evidence audit
@@ -343,7 +360,7 @@ Actual AI changes and validation only; not engineer approval.
   repeat archives with an archived authorization event, coverage break, CLI exit codes). Python code unchanged,
   checks not re-run for this action.
 - **Not done / blocked:** no Python archive audit or cross-language checks; no multi-process tests;
-  `bandit`/`pip-audit` not re-run; no human sign-off.
+  `bandit`/`pip-audit` not re-run; engineer commit review is clarified above; separate formal sign-off was not captured here.
 - **Git:** one local commit, not pushed.
 
 ## Action 15: consistent account-access reports (Java)
@@ -351,7 +368,7 @@ Actual AI changes and validation only; not engineer approval.
 - **Scope:** ACCOUNT_DATA_ACCESS contract and `GET /compliance/account-access-report` in Java only. Python not touched.
 - **AI decisions:** Accepted: verify, select, evidence and meta-event in one write transaction (added `LedgerVerifier.verify(Connection)`), reusing the export bundle builder (extracted `ExportBundleService.signedBundle`, behaviour unchanged). Chose full verification under the write lock for snapshot consistency, accepting writer blocking. Rejected: verifying in a separate snapshot then exporting. Assumption (unconfirmed): integrity-failed ledgers still produce a labeled report plus event/checkpoint; meta-event stores a selection digest, not the subject.
 - **Validation:** `mvn -B -f java\pom.xml verify` BUILD SUCCESS, 207 tests (19 new: contract, service incl. append/redaction/archive barrier tests with real SQLite, HTTP roles/validation). Python ruff check, ruff format --check, mypy, pytest (96 passed) re-run, unchanged code.
-- **Not done / blocked:** No multi-process tests; Python implementation and cross-language checks pending; bandit/pip-audit not re-run; Scenario C answers have no stakeholder confirmation; no human sign-off.
+- **Not done / blocked:** No multi-process tests; Python implementation and cross-language checks pending; bandit/pip-audit not re-run; Scenario C answers have no stakeholder confirmation; engineer commit review is clarified above; separate formal sign-off was not captured here.
 - **Git:** single local commit `feat: implement consistent account-access reports`.
 
 ## Action 16: independent Python evidence verifier
@@ -359,14 +376,14 @@ Actual AI changes and validation only; not engineer approval.
 - **Scope:** Python offline verifier for audit-export-bundle/v1 and export sets (`python/src/audit_log_service/verifier/`), CLI exit codes 0/1/2, own strict JSON parser and JCS, no Java/web/service-module imports. Cross-language fixtures in both directions; docs in `docs/python-verifier.md`.
 - **AI decisions:** Accepted: port the Java verifier's semantics and diagnostic codes but write the parser, JCS, hashing and checks separately (own ECMAScript double formatter, iterative depth scan) so a service-library defect cannot change what is accepted. Accepted: Java-signed fixtures generated once by a gated Java test (`-Daudit.regenerateInteropFixtures=true`) and frozen, since salts are random. Accepted: Python-signed fixtures via a new generator that uses the service library; the verifier agreeing with it (doubles, Unicode, nulls, empties) is the independent check. Modified: replaced a meaningless chain-break test with one that re-computes chainHash so only CHAIN_LINK_BROKEN fires. Rejected: reusing the service canonicalizer or rfc8785 inside the verifier. Assumption: the Python CLI mirrors the Java flags and output.
 - **Validation:** `mvn -B -f java\pom.xml verify` BUILD SUCCESS, 211 tests (1 skipped = gated regeneration). Python: ruff check, ruff format --check, mypy src clean; pytest 159 passed, 1 skipped (symlink test: unavailable on this Windows account); generate_verifier_vectors.py --check clean.
-- **Not done / blocked:** bandit and pip-audit not run; no multi-process tests; Java-signed and Python-signed fixtures share the public test key and an author, so independence is of code, not of people; no human sign-off.
+- **Not done / blocked:** bandit and pip-audit not run; no multi-process tests; Java-signed and Python-signed fixtures share the public test key and an author, so independence is of code, not of people; engineer commit review is clarified above; separate formal sign-off was not captured here.
 - **Git:** single local commit `feat: implement independent Python evidence verifier`.
 
 ## Action 17: Python append, query and checkpoints
 - **Scope**: Python config/auth/SQLite adapter, append/query/checkpoint services and Starlette routes. Unbuilt routes return 501.
 - **AI decisions**: (accepted) app factory instead of a module-level app, because import created files; (accepted) SQL schema and migrations copied verbatim from Java, with no sharing mechanism; (accepted) POST /audit/admin/checkpoints added in Python only, because Java lacks it, and the gap is disclosed; (modified) the trigger test was wrong, since the archive CHECK constraint needs archived_at and nulled columns, so I fixed the test and not the product; (modified) ruff E501 is ignored for tests only and the product code remains at 88 columns; (rejected) a Swagger UI dependency, replaced by a simple HTML route table.
 - **Validation**: in python/ I ran ruff check, ruff format --check and mypy src, all clean. pytest -q gave 221 passed and 1 skipped, covering real SQLite, threads, spawned processes, restart, rollback, snapshots and busy to 503. Java was untouched, so mvn verify was not run.
-- **Not done / blocked**: bandit and pip-audit not run. Verify, export, redaction, archive and report are not built in Python. No human sign-off.
+- **Not done / blocked**: bandit and pip-audit not run. Verify, export, redaction, archive and report are not built in Python. Engineer commit review is clarified above; separate formal sign-off was not captured here.
 - **Git**: one local commit, hash reported in the hand-off.
 
 ## Action 18: Python verification and complete exports
@@ -374,7 +391,7 @@ Actual AI changes and validation only; not engineer approval.
 - **Scope**: Python `GET /audit/verify` (bounded full-ledger verifier), `GET /audit/export` (small v1 bundle) and export-set job/download APIs (`POST /audit/export-sets`, descriptor, manifest, chunks). No Java changes. Redaction, archive and report remain 501 in Python.
 - **AI decisions**: Ported the Java verifier design (scratch-DB authorization index, 13 violation types, 100-diagnostic cap) as independent Python logic. Initially assumed export-set filters were optional; the offline verifiers (Java and Python) require actorId or resourceId for EXPORT purpose, so I changed creation to require them and the test caught it. Export-set jobs use durable job files with staging/ready trees and restart recovery. Hand-built system events in tests stand in for redaction/archive authorization until those APIs exist. Tests verify output with the independent offline verifier and a pinned key, not by comparing database bytes.
 - **Validation** (in `python/`): `ruff check .` passed; `ruff format --check .` passed; `mypy src` passed (23 files); `pytest -q` gave 291 passed, 1 skipped (new: 43 verifier tests, 29 export tests).
-- **Not done / blocked**: `bandit` and `pip-audit` are not installed in the venv and were not run. `mvn verify` was not run because Java is unchanged. No cross-language check beyond the existing Python offline verifier. No human review or sign-off yet.
+- **Not done / blocked**: `bandit` and `pip-audit` are not installed in the venv and were not run. `mvn verify` was not run because Java is unchanged. No cross-language check beyond the existing Python offline verifier. Engineer commit review is clarified above; separate formal sign-off was not captured here.
 - **Git**: One local commit `feat: implement Python verification and complete exports`.
 
 ## Action 19: Python redaction, retention and recovery
@@ -382,7 +399,7 @@ Actual AI changes and validation only; not engineer approval.
 - **Scope**: Python atomic redaction, cleanup queue with WAL busy handling (status/retry/restart recovery), bounded durable archive state machine, orphan reconcile and an explicit archive audit. New routes: redactions, redaction-cleanups (+retry), archive, archive-jobs (+reconcile), archive-audit. Only the account-access report remains 501. Java unchanged.
 - **AI decisions**: Ported the Java services (RedactionService, RedactionCleanupService, ArchiveService, ArchiveAuditService) rather than redesigning. Accepted a test-only stage hook so crash stages are exercised with a BaseException (SimulatedCrashError) that skips FAILED marking, while ordinary exceptions exercise the failure path. Chose to run the whole publish-then-clear step inside one write transaction, so a failed publication rolls back and plaintext stays live. Archive audit reuses the independent offline bundle verifier with the pinned service key. Directory fsync is skipped on Windows and reported as directorySynced=false. Modified: two earlier 501-stub test rows were removed because those routes are now real; one new test asserted no "hello" in a bundle but the second event is legitimately unredacted, so I fixed the test and not the product. Not tested: a FAILED job whose files are referenced by a live authorization (the UNIQUE final_name prevents constructing it).
 - **Validation** (in `python/`): `ruff check .`, `ruff format --check .` and `mypy src` passed (26 files); `pytest -q` gave 320 passed, 1 skipped (new: 9 redaction and 22 archive tests incl. held reader, crash stages, restart, repeated archives, redaction interaction, concurrent redaction).
-- **Not done / blocked**: `bandit` and `pip-audit` are not installed in the venv and were not run. `mvn verify` was not run because Java is unchanged. No cross-process archive test. No human review or sign-off.
+- **Not done / blocked**: `bandit` and `pip-audit` are not installed in the venv and were not run. `mvn verify` was not run because Java is unchanged. No cross-process archive test. Engineer commit review is clarified above; separate formal sign-off was not captured here.
 - **Git**: One local commit `feat: implement Python redaction retention and recovery`.
 
 ## Action 20: Python compliance reporting
@@ -390,14 +407,14 @@ Actual AI changes and validation only; not engineer approval.
 - **Scope**: Python `GET /compliance/account-access-report` (one write transaction: verify, select, meta-event, checkpoint, signed evidence), separate verified/post-report heads, UNKNOWN_REDACTED/UNKNOWN_INVALID, exclusions, 10000 cap with 422, invalid-ledger label. The ACCOUNT_DATA_ACCESS event contract already existed in Python from an earlier action and was only re-tested. Added a cross-service parity test against the real Java jar and `docs/cross-service-parity.md`. Java source unchanged.
 - **AI decisions**: Ported `AccountAccessReportService` rather than redesigning. Added `LedgerVerifier.verify_connection` use inside the write transaction (it already existed) so verification and selection share one snapshot. Refactored bundle signing out of `ExportBundleService.export` into `signed_bundle` so exports and reports share it; export tests still pass. Removed the 501 stub, its OpenAPI note and its test row. The parity test first failed three times: missing `httpx` (the venv provides `httpx2`), Tomcat could not create a temp dir (fixed with `-Djava.io.tmpdir`), then error message wording and salted payload commitments differed. I decided messages are free text (compare status and code) and commitments are salted (compare shape); I did not change either service. The parity test uses the existing jar and does not rebuild it, so it may be stale relative to the Java source.
 - **Validation** (in `python/`): `ruff check .`, `ruff format --check .` and `mypy src` passed (27 files); `pytest -q` gave 356 passed, 1 skipped (symlinks unavailable). New: 36 report tests (roles, parameters, payload validation, counts and groups, redaction, archive exclusion, tamper label, cap rollback, byte cap, two concurrency-barrier tests, concurrent reports) and 1 Java-vs-Python parity test that ran for real.
-- **Not done / blocked**: `bandit` and `pip-audit` are not installed in the venv and were not run. `mvn verify` was not run because Java source is unchanged. Cap and concurrency are not tested cross-service. No human review or sign-off.
+- **Not done / blocked**: `bandit` and `pip-audit` are not installed in the venv and were not run. `mvn verify` was not run because Java source is unchanged. Cap and concurrency are not tested cross-service. Engineer commit review is clarified above; separate formal sign-off was not captured here.
 - **Git**: One local commit `feat: implement Python compliance reporting`.
 
 ## Action 21: Adversarial and cross-process validation
 - **Scope**: Run both services as real processes over HTTP/SQLite through scenarios A/B/C; offline pinned verification; multi-process append; restart; busy-WAL cleanup; real archive; report snapshot; cross-process tamper matrix; Windows and Unix demo scripts.
 - **AI decisions**: Built a process harness (`e2e_support.py`) and 35 parametrized e2e tests (`test_e2e_http.py`). The tamper matrix builds a ledger with the Python library, tampers it with raw SQL, and has BOTH services judge the same file, asserting identical `(type, seq)` sets. Found a real defect: Java had no `POST /audit/admin/checkpoints` (unmapped route -> 500); implemented it with a Java MockMvc test. Fixed my own test mistakes without weakening assertions (an unpinned verifier run exits 1 by design, not 2; the report field is `trustworthy`; archive retention is whole days, so archive tests back-date a synthetic ledger instead of using fractional retention). Registered the `e2e` marker.
 - **Validation**: `mvn -B -q -f java/pom.xml verify` passed (215 surefire/failsafe tests, 0 failures). Python: `ruff format`, `ruff check`, `ruff format --check`, `mypy src` clean; full `pytest` = 391 passed, 1 skipped. `scripts/demo.ps1` run for real against the Python and Java services (verified export exit 0; tamper detected as CONTENT_HASH_MISMATCH seq 3).
-- **Not done / blocked**: `scripts/demo.sh` was NOT run (no bash/wsl/pwsh here). Archive crash stages are not controllable over HTTP; they remain covered by the in-process crash tests. `bandit` and `pip-audit` not installed, not run. Java generic 500 handlers log nothing (noted, not changed). No benchmarks. No human sign-off.
+- **Not done / blocked**: `scripts/demo.sh` was NOT run (no bash/wsl/pwsh here). Archive crash stages are not controllable over HTTP; they remain covered by the in-process crash tests. `bandit` and `pip-audit` not installed, not run. Java generic 500 handlers log nothing (noted, not changed). No benchmarks. Engineer commit review is clarified above; separate formal sign-off was not captured here.
 - **Git**: one local commit `test: validate adversarial and cross-process scenarios`; nothing pushed.
 
 ## Action 22: Enforce quality, security and packaging gates
@@ -405,7 +422,7 @@ Actual AI changes and validation only; not engineer approval.
 - **Scope:** Java/Python format, static, type, coverage and dependency/security gates; pinned CI; executable jar, two non-root images, compose, key provisioning, Windows/Unix setup; prod fail-closed proof; minimal verifier install; secret/artifact hygiene.
 - **AI decisions:** Measured baselines first, then set thresholds just below them (Java JaCoCo LINE 0.84/BRANCH 0.68 vs 86.2%/70.7%; Python fail_under 85 vs 87%) with no coverage exclusions. Added enforcer, spotless (non-invasive rules only, to avoid a mass reformat), SpotBugs (Medium, Max effort). Fixed real SpotBugs findings (leaked PreparedStatement, nullable Path results, getenv vs user.name, NPE catch, boxing, formatted SQL) and suppressed only EI_EXPOSE_REP* and a test-only hook field, with dated justification. Python: moved service deps to a `service` extra so the base install is verifier-only (verified in a clean venv: only cryptography/cffi/pycparser, no web libs loaded); icacls now by absolute path; dated `nosec` on 4 SQL and 1 subprocess site. Added real-process prod fail-closed tests for both services, scripts/provision_keys.py (+tests) and scripts/check_hygiene.py (+tests). Action SHAs and Docker digests were fetched from GitHub/Docker Hub APIs, not guessed.
 - **Validation:** `mvn -B -f java\pom.xml verify` passed (212 tests, 1 skipped; coverage, spotless, spotbugs OK). Python: `ruff check`, `ruff format --check`, `mypy src` clean; full `pytest --cov` 405 passed, 1 skipped, coverage 87.06% (gate 85); prod fail-closed e2e 10 tests pass for java+python; `pip-audit --local` no known vulnerabilities; `scripts\check_hygiene.py` clean.
-- **Not done / blocked:** bandit could not be installed locally (CPython 3.15, no PyYAML wheel, no MSVC); `ruff --select S` used as a partial proxy only. OWASP dependency-check (NVD) not run locally. Docker unavailable: images/compose NOT built or run; Java HEALTHCHECK untested. `ci.yml` never executed. Not run on Python 3.11/3.13. `demo.sh` still not run. No human review or sign-off has occurred.
+- **Not done / blocked:** bandit could not be installed locally (CPython 3.15, no PyYAML wheel, no MSVC); `ruff --select S` used as a partial proxy only. OWASP dependency-check (NVD) not run locally. Docker unavailable: images/compose NOT built or run; Java HEALTHCHECK untested. `ci.yml` never executed. Not run on Python 3.11/3.13. `demo.sh` still not run. Engineer commit review is clarified above; separate formal sign-off was not captured here.
 - **Git:** One local commit `build: enforce quality security and packaging gates`; nothing pushed.
 
 ## Action 23: Measure service limits and failure behavior
@@ -413,7 +430,7 @@ Actual AI changes and validation only; not engineer approval.
 - **Scope**: `scripts/benchmark.py` (stdlib-only HTTP benchmark launching each service as a process: configurable events, warm-up, concurrency levels, payload, queries, verify/export runs; records environment, fsync probe, throughput, p50/p95/p99, peak memory), bounded failure simulation in both languages, `docs/performance.md`, one recorded run in `docs/benchmarks/`.
 - **AI decisions**: Added small test seams instead of mocking SQLite: Python `SqliteStore(max_page_count=)`, Java `JdbcAuditRepository.setMaxPageCount` and a `busyTimeoutMillis` constructor overload (defaults unchanged). Simulated disk-full with `PRAGMA max_page_count`, slow I/O with a sleep inside the write transaction, busy with a held `BEGIN IMMEDIATE` lock; asserted only deterministic facts (rollback, no seq gap, intact ledger, resume, lower-bound elapsed), no timing gates. Added the missing Java export-job 429 test. Did NOT change disk-full from a generic 500 to 503/507; documented it as an open engineer decision. Decided against a separate CI job: the existing `e2e` job runs the tiny benchmark smoke tests. Ran the real benchmark twice; the first run was discarded only because the report showed an unresolved sqlite-jdbc version placeholder (fixed in the script), and both runs' append figures are quoted in the doc. While running hygiene I found `python/tests/test_hygiene_script.py` (Action 22) contained a literal fixture that the hygiene scanner flagged, contradicting the earlier "hygiene clean" note; fixed by building the fixture string in pieces.
 - **Validation**: `mvn -B -f java\pom.xml verify` passed (216 tests, 1 skipped; JaCoCo, spotless, SpotBugs green). Python: `ruff format`/`ruff check` clean, `mypy src` clean, full `pytest --cov` 422 passed, 1 skipped, coverage 87.17%. `scripts/check_hygiene.py` clean. Benchmark run against both services completed with zero functional errors; numbers are in `docs/performance.md` and the JSON, as measured.
-- **Not done / blocked**: Single machine/drive, Windows only; Linux memory probe, Docker, bandit, OWASP and CI remain unexecuted. Serialised-commit ceiling and behaviour beyond ~4,200 records not measured. Concurrency 4 vs 1 explanation is a hypothesis, not isolated. No human review or sign-off has occurred.
+- **Not done / blocked**: Single machine/drive, Windows only; Linux memory probe, Docker, bandit, OWASP and CI remain unexecuted. Serialised-commit ceiling and behaviour beyond ~4,200 records not measured. Concurrency 4 vs 1 explanation is a hypothesis, not isolated. Engineer commit review is clarified above; separate formal sign-off was not captured here.
 - **Git**: One local commit `perf: measure service limits and failure behavior`.
 
 ## Action 24: Finalize engineering evidence and live defense
@@ -421,12 +438,21 @@ Actual AI changes and validation only; not engineer approval.
 - **Scope:** Documentation only. Reconciled README, ADR 0001/0003/0004/0008, scenario-c, account-access-report, redaction, export-bundles, verification, python-service, dependency-versions and requirements-mapping with delivered behaviour. Added `docs/architecture.md`, `docs/api.md`, `docs/live-defense.md`, `ENGINEERING_SUMMARY.md`, and an operations/limits section in `docs/setup.md`.
 - **AI decisions:** Verified routes and role tables against `AuditController.java`, `ApiSecurityInterceptor.java`, `app.py` and `auth.py` before documenting them. Removed stale "later action"/"not implemented" statements. Kept Scenario C labelled as unconfirmed assumptions; invented no stakeholder answers. Left `docs/attestation-template.md` untouched and unsigned. Rehearsed an event-contract extension (new `channel` value `MOBILE_APP`) in both services with a temporary test each, ran targeted tests, then reverted all code with `git checkout`; the value was not adopted. Rejected re-running the full suites for a docs-only change, so ENGINEERING_SUMMARY cites the Action 23 results and says so.
 - **Validation:** Python `tests/test_account_report.py` 37 passed with the temporary case; Java `AccountAccessContractTests`, `AccountAccessReportServiceTests`, `AccountAccessReportHttpTests` passed (8, 9, 3 tests) with the temporary case. `scripts\check_hygiene.py` clean after staging. Grep for overclaims (tamper-proof, production-ready, regulator-ready) found only a negation in README.
-- **Not done / blocked:** CI, Docker images, bandit, OWASP dependency-check, `demo.sh` and the Linux memory probe remain unrun. No human review, sign-off or stakeholder answers exist. Full gates were not re-run in this action.
+- **Not done / blocked:** CI, Docker images, bandit, OWASP dependency-check, `demo.sh` and the Linux memory probe remain unrun. Engineer commit review is clarified above; no stakeholder answers or separate formal sign-off were recorded in this entry. Full gates were not re-run in this action.
 - **Git:** one local commit, `docs: finalize engineering evidence and live defense`; not pushed.
 
 ## Action 25: Remove the duplicate Python service
 
 - **Scope:** Deleted `python/`, its docs (`python-service.md`, `python-verifier.md`, `cross-service-parity.md`), demo scripts and the synthetic tamper script; trimmed `ci.yml`, `compose.yaml`, `.dockerignore`, `scripts/benchmark.py` and the docs to a single Java service.
-- **AI decisions:** Confirmed the Python service duplicated the Java API, schema and protocol before removing it. Kept the independently generated golden fixtures by moving them to `java/src/test/resources/golden` and replaced `PythonInteropTests` with `GoldenSignedFixtureTests`, so the Java verifier is still checked against evidence it did not produce. Recorded the lost live cross-implementation check as a trade-off in ADR 0001, the engineering summary and the live-defense notes. Historical entries in this log were left unchanged.
-- **Validation:** `mvn -B -f java\pom.xml verify` passed (215 tests, 0 failures) after the code and fixture moves; see the next entry for the final re-run. No human review or sign-off has occurred.
+- **AI decisions:** Confirmed the Python service duplicated the Java API, schema and protocol before removing it. Kept the independently generated golden fixtures by moving them to `java/src/test/resources/golden` and replaced `PythonInteropTests` with `GoldenSignedFixtureTests`, so the Java verifier is still checked against evidence it did not produce. Recorded the lost live cross-implementation check as a trade-off in ADR 0001, the engineering summary and the live-defense notes. Implementation and validation history was preserved; review-status wording was subsequently corrected in the dated oversight clarification above.
+- **Validation:** `mvn -B -f java\pom.xml verify` passed (215 tests, 0 failures) after the code and fixture moves. This entry does not establish a later full re-run. Engineer commit review is clarified above; separate formal sign-off was not captured here.
 - **Git:** committed separately from the CI NVD-key fix.
+
+## Action 26: Correct human-review traceability - 2026-10-19
+
+- **Engineer confirmation:** Koushik Panem states that every commit was thoroughly reviewed, that he repeatedly prompted for the desired result, and that human intervention occurred in each commit's development. This corrects the AI log's earlier assumption that the absence of a completed review template meant no human review had happened.
+- **Changed:** Corrected the inaccurate review-denial wording in earlier entries, added the dated clarification and `docs/engineering-review.md`, and aligned the README and engineering summary. Preserved historical test results, failures, unrun checks, Python removal, and unresolved stakeholder questions. Corrected the earlier attribution of the Spring Boot choice to the assignment and removed Action 25's dangling reference to a nonexistent next validation entry.
+- **Related commit traceability:** Around and after Action 25, Git records `10ae6bd` (NVD key handling), `4c2786d` (verifier/setup/schema documentation), `a6fefbd` (warning when NVD key is absent), `86b3554` (API validation and Postman cursor/export checks), and `f69ca61` (remove local Postman artifacts from version control). These titles identify related work; this entry does not invent missing per-change test results.
+- **Human-run validation reported:** The engineer reported importing the Postman collection/environment and a successful collection run. The exact run date, request count, and skipped scenarios were not supplied. This supports only the assertions executed in that run, not optional scenarios that may have been skipped or later uncommitted changes.
+- **Validation of this correction:** Documentation consistency and diff checks only. No application tests, CI, Docker build, security scan, or Postman run were performed as part of this documentation correction.
+- **Scope:** Documentation of engineer-reported oversight, not an electronic signature, independently witnessed review, production release approval, or stakeholder sign-off. No historical commits were rewritten.

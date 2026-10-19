@@ -54,6 +54,7 @@ public final class ApiSecurityInterceptor implements HandlerInterceptor {
         return path.equals("/health")
                 || path.equals("/audit/public-key")
                 || path.equals("/openapi.json")
+                || path.equals("/openapi.json/swagger-config")
                 || path.equals("/v3/api-docs")
                 || path.startsWith("/v3/api-docs/")
                 || path.equals("/docs")

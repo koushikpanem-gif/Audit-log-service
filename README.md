@@ -5,12 +5,14 @@ bundle verifier CLI. It covers Scenario A (append, query, verify), Scenario B
 (redaction, retention archive, verifiable bulk export) and Scenario C (an internal
 account-access report, built on **unconfirmed assumptions**; no stakeholder has answered).
 
-This is a prototype for engineer review. It is tamper-**evident**, not tamper-proof: it has no
-external witness, KMS or WORM storage, and redaction gives no physical-erasure guarantee. Nothing
-has been signed off. The root [`ATTESTATION.md`](./ATTESTATION.md) holds the engineer's personal
-attestation text required by the assignment; the engineering review record in
-[`docs/attestation-template.md`](./docs/attestation-template.md)
-is for the engineer to complete.
+This is an engineer-reviewed prototype (see [review record](./docs/engineering-review.md)).
+It is tamper-**evident**, not tamper-proof: it has no
+external witness, KMS or WORM storage, and redaction gives no physical-erasure guarantee.
+Commit review is recorded separately from production release approval. The root
+[`ATTESTATION.md`](./ATTESTATION.md) holds the engineer's personal attestation text
+required by the assignment. The [review record](./docs/engineering-review.md)
+documents the engineer's confirmation; the [optional review template](./docs/attestation-template.md)
+is available for more detailed notes.
 
 Start with [`ENGINEERING_SUMMARY.md`](./ENGINEERING_SUMMARY.md), then:
 
