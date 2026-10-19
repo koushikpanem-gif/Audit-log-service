@@ -45,10 +45,12 @@ jobs:
           cache: maven
       # Needs the NVD_API_KEY repository secret; without it NVD rate limits can fail the
       # job. That failure is reported, not suppressed (see docs/quality-gates.md).
-      - run: >
-          mvn -B -f java/pom.xml -Psecurity-scan
-          org.owasp:dependency-check-maven:13.0.0:check
-          -DnvdApiKey=${{ secrets.NVD_API_KEY }}
+      - env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: |
+          ARGS=""
+          if [ -n "$NVD_API_KEY" ]; then ARGS="-DnvdApiKey=$NVD_API_KEY"; fi
+          mvn -B -f java/pom.xml -Psecurity-scan org.owasp:dependency-check-maven:13.0.0:check $ARGS
 
   python:
     name: Python quality gates (${{ matrix.python }})
@@ -67,6 +69,9 @@ jobs:
           python-version: ${{ matrix.python }}
           cache: pip
           cache-dependency-path: python/pyproject.toml
+      # The runner's preinstalled setuptools can be older than the fixed version; upgrade
+      # tooling first so pip-audit reports only real project dependencies.
+      - run: python -m pip install --upgrade pip "setuptools>=83"
       - run: python -m pip install -e ".[dev]"
       - run: ruff check .
       - run: ruff format --check .
