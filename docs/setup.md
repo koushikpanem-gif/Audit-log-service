@@ -53,7 +53,8 @@ java -jar java/target/audit-log-service-0.1.0-SNAPSHOT.jar
 
 ## Containers
 
-`java/Dockerfile` builds a non-root (UID 10001) image from the repository root; `compose.yaml` runs it with named`nvolumes for data, archives and exports, a read-only keys mount, a read-only
+`java/Dockerfile` builds a non-root (UID 10001) image from the repository root; `compose.yaml` runs it with named
+volumes for data, archives and exports, a read-only keys mount, a read-only
 root filesystem, dropped capabilities and loopback-only ports.
 
 ```sh
@@ -77,12 +78,12 @@ Examples use the dev admin key against a local service (use `curl.exe` in Window
 # Small export: one signed bundle, or 422 EXPORT_LIMIT_EXCEEDED when over the limits
 curl -s -H "X-API-Key: dev-auditor-only" "http://127.0.0.1:8080/audit/export?actorId=alice" -o bundle.json
 curl -s http://127.0.0.1:8080/audit/public-key        # take the key from a source you trust, not from the bundle
-java -cp java/target/classes com.auditlog.verifier.BundleVerifierCli --bundle bundle.json --pinned-key <base64>
+java -Dloader.main=com.auditlog.verifier.BundleVerifierCli -cp java/target/audit-log-service-0.1.0-SNAPSHOT.jar org.springframework.boot.loader.launch.PropertiesLauncher --bundle bundle.json --pinned-key <base64>
 
 # Large export: create a set, poll until READY, download the manifest and chunks, verify the directory offline
 curl -s -X POST -H "X-API-Key: dev-auditor-only" "http://127.0.0.1:8080/audit/export-sets?actorId=alice"
 curl -s -H "X-API-Key: dev-auditor-only" http://127.0.0.1:8080/audit/export-sets/<id>
-java -cp java/target/classes com.auditlog.verifier.BundleVerifierCli --manifest set-dir/manifest.json --pinned-key <base64>
+java -Dloader.main=com.auditlog.verifier.BundleVerifierCli -cp java/target/audit-log-service-0.1.0-SNAPSHOT.jar org.springframework.boot.loader.launch.PropertiesLauncher --manifest set-dir/manifest.json --pinned-key <base64>
 
 # Redaction cleanup: PENDING means the delete committed but the WAL truncate was busy
 curl -s -H "X-API-Key: dev-admin-only" http://127.0.0.1:8080/audit/admin/redaction-cleanups
@@ -105,4 +106,4 @@ guarantee after redaction or archiving; archived records leave normal query, exp
 
 ## Offline verifier
 
-The verifier (com.auditlog.verifier.BundleVerifierCli) needs only the compiled classes plus the Java dependencies used for crypto. Exit codes: 0 verified, 1 evidence invalid, 2 input/usage.
+The verifier (com.auditlog.verifier.BundleVerifierCli) is shipped in the service jar; run it through Spring Boot's `PropertiesLauncher` as shown above (`mvn package` first). Exit codes: 0 verified, 1 evidence invalid, 2 input/usage.

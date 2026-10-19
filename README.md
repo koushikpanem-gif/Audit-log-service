@@ -89,7 +89,14 @@ curl -H "X-API-Key: dev-reader-only" "http://localhost:8080/audit/events?actorId
 curl -H "X-API-Key: dev-auditor-only" http://localhost:8080/audit/verify
 ```
 
-On Windows PowerShell, call `curl.exe` (not the `curl` alias) or use `Invoke-RestMethod`.
+On Windows PowerShell, `curl` is an alias and the line continuation differs; use this instead:
+
+```powershell
+$body = '{"eventType":"USER_LOGIN","actorId":"alice","resourceType":"session","resourceId":"s-1","payload":{"ip":"10.0.0.1"}}'
+Invoke-RestMethod -Method Post -Uri http://localhost:8080/audit/events -Headers @{ "X-API-Key" = "dev-writer-only" } -ContentType "application/json" -Body $body
+Invoke-RestMethod -Uri "http://localhost:8080/audit/events?actorId=alice" -Headers @{ "X-API-Key" = "dev-reader-only" }
+Invoke-RestMethod -Uri http://localhost:8080/audit/verify -Headers @{ "X-API-Key" = "dev-auditor-only" }
+```
 
 ### 3. Reset to a clean state
 

@@ -61,12 +61,12 @@ A redaction or archive between pages can change what later pages show. This is a
 
 | File | Describes |
 |---|---|
-| [`schemas/bundle.json`](./schemas/bundle.json) | `audit-export-bundle/v1` |
-| [`schemas/record.json`](./schemas/record.json) | one exported record |
-| [`schemas/checkpoint.json`](./schemas/checkpoint.json) | `headCheckpoint` |
-| [`schemas/selection.json`](./schemas/selection.json), [`completeness.json`](./schemas/completeness.json) | selection and completeness blocks |
-| [`schemas/export-set-manifest.json`](./schemas/export-set-manifest.json) | signed export-set manifest |
-| [`schemas/diagnostics.json`](./schemas/diagnostics.json) | verifier diagnostics |
+| [`schemas/bundle.schema.json`](./schemas/bundle.schema.json) | `audit-export-bundle/v1` |
+| [`schemas/record.schema.json`](./schemas/record.schema.json) | one exported record |
+| [`schemas/checkpoint.schema.json`](./schemas/checkpoint.schema.json) | `headCheckpoint` |
+| [`schemas/selection.schema.json`](./schemas/selection.schema.json), [`completeness.schema.json`](./schemas/completeness.schema.json) | selection and completeness blocks |
+| [`schemas/export-set-manifest.schema.json`](./schemas/export-set-manifest.schema.json) | signed export-set manifest |
+| [`schemas/diagnostics.schema.json`](./schemas/diagnostics.schema.json) | verifier diagnostics |
 
 Schemas check shape only. Digests, counts, ordering, hashes and signatures are enforced by the verifiers. Test vectors:
 [`test-vectors/`](./test-vectors). Protocol details: [adr/0002](./adr/0002-canonicalization-and-hash-protocol.md),

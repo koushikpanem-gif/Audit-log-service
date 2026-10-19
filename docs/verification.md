@@ -89,9 +89,6 @@ A hash chain cannot detect, without a surviving trusted checkpoint:
 Key compromise, a DB administrator who rewrites and re-signs, and absence of
 an external witness/KMS/WORM are out of scope.
 
-## Synthetic tamper tool
+## Tamper testing
 
-`scripts/synthetic_tamper.py <db> <mode> --i-understand-this-is-synthetic-data`
-(modes: `edit-field [--rehash]`, `edit-leaf`, `delete`, `swap`, `rewrite`,
-`truncate`, `delete-checkpoints`). It refuses unless `ledger_id` starts with
-`synthetic-`. It modifies the file in place; work on a copy.
+Tamper cases are exercised by LedgerVerifierTests against synthetic ledgers (guard triggers dropped as a DBA could). To try it by hand, edit a copy of a throwaway dev database with SQLite, then call GET /audit/verify; never tamper with real data.

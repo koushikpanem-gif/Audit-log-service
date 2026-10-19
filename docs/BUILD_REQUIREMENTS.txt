@@ -1,3 +1,5 @@
+NOTE: This is the ORIGINAL BUILD PLAN, kept as a historical record and now SUPERSEDED. It describes a two-service Java + Python design; the Python service was later removed (see docs/adr/0001-platform-and-layout.md). Current behaviour is described in README.md and docs/.
+
 ACTION 01: DEFINE REQUIREMENTS AND OWNERSHIP
 
 EXECUTION RULES
